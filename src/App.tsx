@@ -167,7 +167,8 @@ function MainApp({
     }
   }, [activeTab]);
 
-  // Fix #11: On startup, check for orphaned tags and ingredients and add them to master lists
+  // On startup, check for orphaned tags and ingredients and add them to master lists.
+  // Uses async IIFE with sequential awaits to avoid concurrent file write races.
   const orphanCheckDone = useRef(false);
   useEffect(() => {
     if (
@@ -179,46 +180,52 @@ function MainApp({
       return;
     orphanCheckDone.current = true;
 
-    const tagIds = new Set(tagLib.tags.map((t) => t.id));
-    const ingredientIds = new Set(ingredientLib.ingredients.map((i) => i.id));
+    (async () => {
+      try {
+        const tagIds = new Set(tagLib.tags.map((t) => t.id));
+        const ingredientIds = new Set(
+          ingredientLib.ingredients.map((i) => i.id)
+        );
 
-    // Collect orphaned tags and ingredients from meals
-    const orphanedTags = new Set<string>();
-    const orphanedIngredientIds = new Set<string>();
+        const orphanedTags = new Set<string>();
+        const orphanedIngredientIds = new Set<string>();
 
-    for (const meal of mealLib.meals) {
-      for (const tagSlug of meal.tags) {
-        if (!tagIds.has(tagSlug)) orphanedTags.add(tagSlug);
-      }
-      for (const entry of meal.ingredients) {
-        if (!ingredientIds.has(entry.ingredientId)) {
-          orphanedIngredientIds.add(entry.ingredientId);
+        for (const meal of mealLib.meals) {
+          for (const tagSlug of meal.tags) {
+            if (!tagIds.has(tagSlug)) orphanedTags.add(tagSlug);
+          }
+          for (const entry of meal.ingredients) {
+            if (!ingredientIds.has(entry.ingredientId)) {
+              orphanedIngredientIds.add(entry.ingredientId);
+            }
+          }
         }
+
+        // Create missing tags sequentially to avoid concurrent write races
+        for (const tagSlug of orphanedTags) {
+          const label = tagSlug
+            .replace(/-/g, " ")
+            .replace(/\b\w/g, (c) => c.toUpperCase());
+          await tagLib.addTag(label);
+        }
+
+        // Create placeholder ingredients with the exact orphaned IDs
+        if (orphanedIngredientIds.size > 0) {
+          const placeholders = [...orphanedIngredientIds].map((id) => ({
+            id,
+            name: `Unknown (${id.slice(0, 8)})`,
+            category: "other" as const,
+            defaultUnit: "each",
+          }));
+          await ingredientLib.saveIngredients([
+            ...ingredientLib.getIngredients(),
+            ...placeholders,
+          ]);
+        }
+      } catch (e) {
+        console.error("Orphan check failed:", e);
       }
-    }
-
-    // Create missing tags
-    for (const tagSlug of orphanedTags) {
-      const label = tagSlug
-        .replace(/-/g, " ")
-        .replace(/\b\w/g, (c) => c.toUpperCase());
-      tagLib.addTag(label);
-    }
-
-    // Create placeholder ingredients with the exact orphaned IDs
-    // so meal references resolve correctly
-    if (orphanedIngredientIds.size > 0) {
-      const placeholders = [...orphanedIngredientIds].map((id) => ({
-        id,
-        name: `Unknown (${id.slice(0, 8)})`,
-        category: "other" as const,
-        defaultUnit: "each",
-      }));
-      ingredientLib.saveIngredients([
-        ...ingredientLib.ingredients,
-        ...placeholders,
-      ]);
-    }
+    })();
   }, [mealLib.loaded, tagLib.loaded, ingredientLib.loaded]);
 
   return (
@@ -256,6 +263,12 @@ function MainApp({
             tagLib={tagLib}
             mealLib={mealLib}
             ingredientLib={ingredientLib}
+            onReloadAll={async () => {
+              await mealLib.reload();
+              await ingredientLib.reload();
+              await tagLib.reload();
+              await catItemLib.reload();
+            }}
           />
         )}
       </main>

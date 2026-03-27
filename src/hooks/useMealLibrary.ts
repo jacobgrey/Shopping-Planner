@@ -18,10 +18,16 @@ export function useMealLibrary() {
   }, []);
 
   async function loadMeals() {
-    const data = await readJson<Meal[]>(MEALS_FILE);
-    const list = data || [];
-    setMeals(list);
-    mealsRef.current = list;
+    try {
+      const data = await readJson<Meal[]>(MEALS_FILE);
+      const list = Array.isArray(data) ? data.filter((m) => m && typeof m.name === "string") : [];
+      setMeals(list);
+      mealsRef.current = list;
+    } catch (e) {
+      console.error("Failed to load meals:", e);
+      setMeals([]);
+      mealsRef.current = [];
+    }
     setLoaded(true);
   }
 
@@ -61,24 +67,30 @@ export function useMealLibrary() {
   const importMeals = useCallback(
     async (
       defs: MealDefinition[],
-      mode: "skip" | "overwrite"
-    ): Promise<{ added: number; skipped: number; overwritten: number }> => {
+      mode: "merge" | "replace"
+    ): Promise<{ added: number; skipped: number; replaced: number }> => {
       let added = 0;
       let skipped = 0;
-      let overwritten = 0;
-      const updated = [...mealsRef.current];
 
+      if (mode === "replace") {
+        // Replace: clear all existing meals, add all from import
+        const newMeals = defs.map((def) => ({
+          ...def,
+          id: crypto.randomUUID(),
+          createdAt: new Date().toISOString(),
+        }));
+        await saveMeals(newMeals);
+        return { added: newMeals.length, skipped: 0, replaced: mealsRef.current.length };
+      }
+
+      // Merge: add new meals, skip duplicates by name
+      const updated = [...mealsRef.current];
       for (const def of defs) {
         const existingIdx = updated.findIndex(
           (m) => m.name.toLowerCase() === def.name.toLowerCase()
         );
         if (existingIdx >= 0) {
-          if (mode === "overwrite") {
-            updated[existingIdx] = { ...updated[existingIdx], ...def };
-            overwritten++;
-          } else {
-            skipped++;
-          }
+          skipped++;
         } else {
           updated.push({
             ...def,
@@ -90,10 +102,10 @@ export function useMealLibrary() {
       }
 
       await saveMeals(updated);
-      return { added, skipped, overwritten };
+      return { added, skipped, replaced: 0 };
     },
     [saveMeals]
   );
 
-  return { meals, loaded, addMeal, updateMeal, deleteMeal, importMeals };
+  return { meals, loaded, reload: loadMeals, addMeal, updateMeal, deleteMeal, importMeals };
 }

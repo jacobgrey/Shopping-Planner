@@ -37,7 +37,7 @@ Use this format to create a JSON file for importing meals into the Meal Planner 
 | `name` | string | **Yes** | Meal name (used as unique key for duplicate detection) |
 | `sides` | string[] | No | Side dishes (e.g., `["White Rice", "Steamed Broccoli"]`) |
 | `ingredients` | object[] | **Yes** | At least one ingredient required |
-| `tags` | string[] | No | Tag slugs (see tag list below). Unknown tags are auto-created on import. |
+| `tags` | string[] | No | Tag slugs — lowercase, hyphens only, no spaces (e.g., `"kid-friendly"`). Unknown tags are auto-created on import. Tags with spaces or special characters are auto-normalized. |
 | `prepTimeMinutes` | number | No | Active prep/cook time in minutes |
 | `notes` | string | No | Free-text notes. URLs are rendered as clickable links in the app. |
 
@@ -58,17 +58,20 @@ produce, meat, dairy, frozen, bakery, canned-goods, dry-goods,
 condiments, spices, snacks, beverages, deli, other
 ```
 
-### Built-in Tags
+### Tags
 
-These are the default tag slugs. You can use any slug — unknown tags are automatically created on import.
+Tags are **slug-format strings**: lowercase letters, numbers, and hyphens only. No spaces, no special characters.
+
+- **Good:** `"kid-friendly"`, `"slow-cooker"`, `"easy"`, `"kids-can-cook"`
+- **Bad:** `"Kid Friendly"`, `"slow cooker"` (these will be auto-normalized but may trigger warnings)
+
+You can use **any** tag slug — unknown tags are automatically created on import. Here are the built-in defaults:
 
 ```
 low-effort, has-leftovers, low-cost, filling, kid-favorite,
 dads-favorite, healthy, comfort-food, quick, slow-cooker,
 grill, vegetarian
 ```
-
-Tag slugs use lowercase with hyphens (e.g., `kid-favorite`, not `Kid Favorite`).
 
 ## Example
 

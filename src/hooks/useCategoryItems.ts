@@ -100,6 +100,7 @@ export function useCategoryItems() {
   return {
     items,
     loaded,
+    reload: loadItems,
     breakfastItems,
     lunchItems,
     snackItems,

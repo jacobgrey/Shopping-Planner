@@ -42,11 +42,22 @@ export function useTags() {
   }, []);
 
   async function loadTags() {
-    const data = await readJson<TagDefinition[]>(TAGS_FILE);
-    const list = data || DEFAULT_TAGS;
-    if (!data) await writeJson(TAGS_FILE, DEFAULT_TAGS);
-    setTags(list);
-    tagsRef.current = list;
+    try {
+      const data = await readJson<TagDefinition[]>(TAGS_FILE);
+      const list = Array.isArray(data) ? data.filter((t) => t && typeof t.id === "string") : null;
+      if (list && list.length > 0) {
+        setTags(list);
+        tagsRef.current = list;
+      } else {
+        await writeJson(TAGS_FILE, DEFAULT_TAGS);
+        setTags(DEFAULT_TAGS);
+        tagsRef.current = DEFAULT_TAGS;
+      }
+    } catch (e) {
+      console.error("Failed to load tags:", e);
+      setTags(DEFAULT_TAGS);
+      tagsRef.current = DEFAULT_TAGS;
+    }
     setLoaded(true);
   }
 
@@ -99,5 +110,28 @@ export function useTags() {
     [saveTags]
   );
 
-  return { tags, loaded, addTag, removeTag, updateTag, renameTag };
+  /** Batch-add multiple tags at once (single file write). Returns all created tags. */
+  const addTagsBatch = useCallback(
+    async (entries: { slug: string; label: string }[]): Promise<TagDefinition[]> => {
+      const existing = new Set(tagsRef.current.map((t) => t.id));
+      const newTags: TagDefinition[] = [];
+      for (const { slug, label } of entries) {
+        // Use the slug directly as ID (already normalized by caller/validator)
+        if (existing.has(slug)) continue;
+        existing.add(slug);
+        newTags.push({
+          id: slug,
+          label: label.trim(),
+          colorIndex: (tagsRef.current.length + newTags.length) % TAG_COLOR_PALETTE.length,
+        });
+      }
+      if (newTags.length > 0) {
+        await saveTags([...tagsRef.current, ...newTags]);
+      }
+      return newTags;
+    },
+    [saveTags]
+  );
+
+  return { tags, loaded, reload: loadTags, saveTags, addTag, addTagsBatch, removeTag, updateTag, renameTag };
 }

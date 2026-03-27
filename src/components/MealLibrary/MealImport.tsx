@@ -2,25 +2,26 @@ import { useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import { parseMealImportJson } from "../../lib/importValidator";
-import type { MealDefinition, MasterIngredient, IngredientEntry } from "../../types/meals";
+import type { MealDefinition, MasterIngredient, TagDefinition, IngredientEntry } from "../../types/meals";
 
 interface MealImportProps {
-  onAddMasterIngredient: (def: Omit<MasterIngredient, "id">) => Promise<MasterIngredient>;
-  findIngredientByName: (name: string) => MasterIngredient | undefined;
-  existingTags: { id: string; label: string }[];
-  onAddTag: (label: string) => Promise<{ id: string }>;
+  ingredientLib: {
+    addIngredientsBatch: (defs: Omit<MasterIngredient, "id">[]) => Promise<MasterIngredient[]>;
+    findByName: (name: string) => MasterIngredient | undefined;
+  };
+  tagLib: {
+    addTagsBatch: (entries: { slug: string; label: string }[]) => Promise<TagDefinition[]>;
+  };
   onImport: (
     meals: MealDefinition[],
-    mode: "skip" | "overwrite"
-  ) => Promise<{ added: number; skipped: number; overwritten: number }>;
+    mode: "merge" | "replace"
+  ) => Promise<{ added: number; skipped: number; replaced: number }>;
   onClose: () => void;
 }
 
 export default function MealImport({
-  onAddMasterIngredient,
-  findIngredientByName,
-  existingTags,
-  onAddTag,
+  ingredientLib,
+  tagLib,
   onImport,
   onClose,
 }: MealImportProps) {
@@ -28,12 +29,13 @@ export default function MealImport({
   const [importResult, setImportResult] = useState<{
     added: number;
     skipped: number;
-    overwritten: number;
+    replaced: number;
     ingredientsCreated: number;
     tagsCreated: number;
   } | null>(null);
-  const [duplicateMode, setDuplicateMode] = useState<"skip" | "overwrite">("skip");
+  const [importMode, setImportMode] = useState<"merge" | "replace">("merge");
   const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
 
   async function handleSelectFile() {
     const selected = await open({
@@ -45,84 +47,112 @@ export default function MealImport({
       const validation = parseMealImportJson(content);
       setResult(validation);
       setImportResult(null);
+      setImportError(null);
     }
   }
 
   async function handleImport() {
     if (!result || result.meals.length === 0) return;
     setImporting(true);
+    setImportError(null);
 
-    // Convert ImportMealDefinition[] → MealDefinition[] by creating/finding master ingredients
-    let ingredientsCreated = 0;
-    let tagsCreated = 0;
-    const convertedMeals: MealDefinition[] = [];
+    try {
+      // Step 1: Collect all unique ingredient definitions from the import file
+      // (addIngredientsBatch deduplicates against existing master list internally via ref)
+      const seenIngNames = new Set<string>();
+      const ingDefs: Omit<MasterIngredient, "id">[] = [];
 
-    // Track known tag IDs (existing + newly created during this import)
-    const knownTagIds = new Set(existingTags.map((t) => t.id));
+      const seenTagSlugs = new Set<string>();
+      const tagEntries: { slug: string; label: string }[] = [];
 
-    for (const importMeal of result.meals) {
-      const ingredients: IngredientEntry[] = [];
-      for (const imp of importMeal.ingredients) {
-        let master = findIngredientByName(imp.name);
-        if (!master) {
-          master = await onAddMasterIngredient({
-            name: imp.name,
-            category: imp.category,
-            defaultUnit: imp.unit || "each",
-            pricePerUnit: imp.priceEstimate != null && imp.quantity
-              ? imp.priceEstimate / imp.quantity
-              : imp.priceEstimate,
-          });
-          ingredientsCreated++;
+      for (const meal of result.meals) {
+        for (const imp of meal.ingredients) {
+          const key = imp.name.toLowerCase().trim();
+          if (!seenIngNames.has(key)) {
+            seenIngNames.add(key);
+            ingDefs.push({
+              name: imp.name,
+              category: imp.category,
+              defaultUnit: imp.unit || "each",
+              pricePerUnit:
+                imp.priceEstimate != null && imp.quantity
+                  ? imp.priceEstimate / imp.quantity
+                  : imp.priceEstimate,
+            });
+          }
         }
-        ingredients.push({
-          ingredientId: master.id,
-          quantity: imp.quantity,
+        for (const tagSlug of meal.tags) {
+          if (!seenTagSlugs.has(tagSlug)) {
+            seenTagSlugs.add(tagSlug);
+            const label = tagSlug
+              .replace(/-/g, " ")
+              .replace(/\b\w/g, (c) => c.toUpperCase());
+            tagEntries.push({ slug: tagSlug, label });
+          }
+        }
+      }
+
+      // Step 2: Create missing ingredients via ref-based batch (single file write)
+      const createdIngs = await ingredientLib.addIngredientsBatch(ingDefs);
+
+      // Step 3: Create missing tags via ref-based batch (single file write)
+      const createdTags = await tagLib.addTagsBatch(tagEntries);
+
+      // Step 4: Convert import meals to internal format
+      // findByName reads from ingredientsRef.current (updated in step 2), so lookups are fresh
+      const convertedMeals: MealDefinition[] = [];
+      for (const importMeal of result.meals) {
+        const ingredients: IngredientEntry[] = [];
+        for (const imp of importMeal.ingredients) {
+          const master = ingredientLib.findByName(imp.name);
+          if (master) {
+            ingredients.push({
+              ingredientId: master.id,
+              quantity: imp.quantity,
+            });
+          }
+        }
+        convertedMeals.push({
+          name: importMeal.name,
+          sides: importMeal.sides,
+          ingredients,
+          tags: importMeal.tags,
+          prepTimeMinutes: importMeal.prepTimeMinutes,
+          notes: importMeal.notes,
         });
       }
 
-      // Create missing tags
-      const resolvedTags: string[] = [];
-      for (const tagSlug of importMeal.tags) {
-        if (!knownTagIds.has(tagSlug)) {
-          // Create tag using slug as label (convert dashes to spaces, title case)
-          const label = tagSlug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-          const created = await onAddTag(label);
-          knownTagIds.add(created.id);
-          tagsCreated++;
-          resolvedTags.push(created.id);
-        } else {
-          resolvedTags.push(tagSlug);
-        }
-      }
-
-      convertedMeals.push({
-        name: importMeal.name,
-        sides: importMeal.sides,
-        ingredients,
-        tags: resolvedTags,
-        prepTimeMinutes: importMeal.prepTimeMinutes,
-        notes: importMeal.notes,
+      // Step 5: Save meals
+      const res = await onImport(convertedMeals, importMode);
+      setImportResult({
+        ...res,
+        ingredientsCreated: createdIngs.length,
+        tagsCreated: Array.isArray(createdTags) ? createdTags.length : 0,
       });
+    } catch (e) {
+      setImportError(
+        `Import failed: ${e instanceof Error ? e.message : String(e)}`
+      );
+    } finally {
+      setImporting(false);
     }
-
-    const res = await onImport(convertedMeals, duplicateMode);
-    setImportResult({ ...res, ingredientsCreated, tagsCreated });
-    setImporting(false);
   }
 
   return (
     <div className="max-w-2xl">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold text-gray-800">Import Meals</h2>
-        <button onClick={onClose} className="text-sm text-gray-500 hover:text-gray-700">
+        <button
+          onClick={onClose}
+          className="text-sm text-gray-500 hover:text-gray-700"
+        >
           Back to Library
         </button>
       </div>
 
       <p className="text-sm text-gray-600 mb-4">
-        Import meals from a JSON file. Ingredients will be automatically added to
-        the master ingredient list.
+        Import meals from a JSON file. Ingredients and tags will be
+        automatically added to the master lists.
       </p>
 
       <button
@@ -147,7 +177,9 @@ export default function MealImport({
 
           {result.warnings.length > 0 && (
             <div className="mb-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <p className="text-sm font-medium text-yellow-700 mb-1">Warnings:</p>
+              <p className="text-sm font-medium text-yellow-700 mb-1">
+                Warnings:
+              </p>
               <ul className="text-sm text-yellow-600 list-disc list-inside">
                 {result.warnings.map((warn, i) => (
                   <li key={i}>{warn}</li>
@@ -159,28 +191,39 @@ export default function MealImport({
           {result.meals.length > 0 && (
             <div className="mb-4">
               <p className="text-sm text-gray-700 mb-2">
-                <span className="font-medium">{result.meals.length}</span> meal(s) ready to import:
+                <span className="font-medium">{result.meals.length}</span>{" "}
+                meal(s) ready to import:
               </p>
               <ul className="text-sm text-gray-600 list-disc list-inside mb-4 max-h-48 overflow-y-auto">
                 {result.meals.map((meal, i) => (
                   <li key={i}>
                     {meal.name}{" "}
-                    <span className="text-gray-400">({meal.ingredients.length} ingredients)</span>
+                    <span className="text-gray-400">
+                      ({meal.ingredients.length} ingredients)
+                    </span>
                   </li>
                 ))}
               </ul>
 
-              {!importResult && (
+              {!importResult && !importError && (
                 <div className="flex items-center gap-4">
                   <label className="flex items-center gap-2 text-sm text-gray-700">
-                    <span>Duplicates:</span>
+                    <span>Mode:</span>
                     <select
-                      value={duplicateMode}
-                      onChange={(e) => setDuplicateMode(e.target.value as "skip" | "overwrite")}
+                      value={importMode}
+                      onChange={(e) =>
+                        setImportMode(
+                          e.target.value as "merge" | "replace"
+                        )
+                      }
                       className="px-2 py-1 border border-gray-300 rounded text-sm"
                     >
-                      <option value="skip">Skip</option>
-                      <option value="overwrite">Overwrite</option>
+                      <option value="merge">
+                        Merge (add new, skip existing)
+                      </option>
+                      <option value="replace">
+                        Replace (clear all meals first)
+                      </option>
                     </select>
                   </label>
                   <button
@@ -195,14 +238,23 @@ export default function MealImport({
             </div>
           )}
 
+          {importError && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg mb-3">
+              <p className="text-sm text-red-700">{importError}</p>
+            </div>
+          )}
+
           {importResult && (
             <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
               <p className="text-sm text-green-700">
                 Import complete: {importResult.added} meals added
-                {importResult.overwritten > 0 && `, ${importResult.overwritten} overwritten`}
-                {importResult.skipped > 0 && `, ${importResult.skipped} skipped`}
-                . {importResult.ingredientsCreated} new ingredients added to master list.
-                {importResult.tagsCreated > 0 && ` ${importResult.tagsCreated} new tags created.`}
+                {importResult.replaced > 0 &&
+                  ` (replaced ${importResult.replaced} existing)`}
+                {importResult.skipped > 0 &&
+                  `, ${importResult.skipped} skipped`}
+                . {importResult.ingredientsCreated} new ingredients added.
+                {importResult.tagsCreated > 0 &&
+                  ` ${importResult.tagsCreated} new tags created.`}
               </p>
               <button
                 onClick={onClose}

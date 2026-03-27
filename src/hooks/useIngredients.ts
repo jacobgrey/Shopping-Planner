@@ -18,10 +18,16 @@ export function useIngredients() {
   }, []);
 
   async function loadIngredients() {
-    const data = await readJson<MasterIngredient[]>(INGREDIENTS_FILE);
-    const list = data || [];
-    setIngredients(list);
-    ingredientsRef.current = list;
+    try {
+      const data = await readJson<MasterIngredient[]>(INGREDIENTS_FILE);
+      const list = Array.isArray(data) ? data.filter((i) => i && typeof i.name === "string" && i.id) : [];
+      setIngredients(list);
+      ingredientsRef.current = list;
+    } catch (e) {
+      console.error("Failed to load ingredients:", e);
+      setIngredients([]);
+      ingredientsRef.current = [];
+    }
     setLoaded(true);
   }
 
@@ -72,10 +78,39 @@ export function useIngredients() {
     []
   );
 
+  /** Return the current ingredients from the ref (always fresh, no stale closure risk). */
+  const getIngredients = useCallback((): MasterIngredient[] => {
+    return ingredientsRef.current;
+  }, []);
+
+  /** Batch-add multiple ingredients at once (single file write). Returns all created ingredients. */
+  const addIngredientsBatch = useCallback(
+    async (defs: Omit<MasterIngredient, "id">[]): Promise<MasterIngredient[]> => {
+      const existingNames = new Set(
+        ingredientsRef.current.map((i) => i.name.toLowerCase().trim())
+      );
+      const newIngs: MasterIngredient[] = [];
+      for (const def of defs) {
+        const key = def.name.toLowerCase().trim();
+        if (existingNames.has(key)) continue;
+        existingNames.add(key);
+        newIngs.push({ ...def, id: crypto.randomUUID() });
+      }
+      if (newIngs.length > 0) {
+        await saveIngredients([...ingredientsRef.current, ...newIngs]);
+      }
+      return newIngs;
+    },
+    [saveIngredients]
+  );
+
   return {
     ingredients,
     loaded,
+    reload: loadIngredients,
+    getIngredients,
     addIngredient,
+    addIngredientsBatch,
     updateIngredient,
     deleteIngredient,
     getById,

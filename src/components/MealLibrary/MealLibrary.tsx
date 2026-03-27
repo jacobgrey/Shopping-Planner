@@ -14,26 +14,28 @@ interface MealLibraryProps {
     deleteMeal: (id: string) => Promise<void>;
     importMeals: (
       defs: MealDefinition[],
-      mode: "skip" | "overwrite"
-    ) => Promise<{ added: number; skipped: number; overwritten: number }>;
+      mode: "merge" | "replace"
+    ) => Promise<{ added: number; skipped: number; replaced: number }>;
   };
   tagLib: {
     tags: TagDefinition[];
     loaded: boolean;
     addTag: (label: string) => Promise<TagDefinition>;
+    addTagsBatch: (entries: { slug: string; label: string }[]) => Promise<TagDefinition[]>;
   };
   ingredientLib: {
     ingredients: MasterIngredient[];
     loaded: boolean;
     addIngredient: (def: Omit<MasterIngredient, "id">) => Promise<MasterIngredient>;
+    addIngredientsBatch: (defs: Omit<MasterIngredient, "id">[]) => Promise<MasterIngredient[]>;
     findByName: (name: string) => MasterIngredient | undefined;
   };
 }
 
 export default function MealLibrary({ mealLib, tagLib, ingredientLib }: MealLibraryProps) {
   const { meals, loaded, addMeal, updateMeal, deleteMeal, importMeals } = mealLib;
-  const { tags, loaded: tagsLoaded, addTag } = tagLib;
-  const { ingredients, loaded: ingsLoaded, addIngredient, findByName } = ingredientLib;
+  const { tags, loaded: tagsLoaded } = tagLib;
+  const { ingredients, loaded: ingsLoaded, addIngredient } = ingredientLib;
   const [searchQuery, setSearchQuery] = useState("");
   const [filterTag, setFilterTag] = useState<string>("");
   const [editingMeal, setEditingMeal] = useState<Meal | null>(null);
@@ -97,10 +99,8 @@ export default function MealLibrary({ mealLib, tagLib, ingredientLib }: MealLibr
   if (showImport) {
     return (
       <MealImport
-        onAddMasterIngredient={addIngredient}
-        findIngredientByName={findByName}
-        existingTags={tags}
-        onAddTag={addTag}
+        ingredientLib={ingredientLib}
+        tagLib={tagLib}
         onImport={importMeals}
         onClose={() => setShowImport(false)}
       />

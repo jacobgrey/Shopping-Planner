@@ -68,30 +68,37 @@ export function useWeekPlanner(meals: Meal[], firstDayOfWeek: number = 0) {
   }, [firstDayOfWeek]);
 
   async function loadData() {
-    const weekStart = getWeekStart(firstDayOfWeek);
-    let savedPlan = await readJson<WeekPlan>(PLAN_FILE);
-    if (!savedPlan || savedPlan.weekOf !== weekStart) {
-      savedPlan = createEmptyWeek(weekStart);
+    try {
+      const weekStart = getWeekStart(firstDayOfWeek);
+      let savedPlan = await readJson<WeekPlan>(PLAN_FILE);
+      if (!savedPlan || typeof savedPlan !== "object" || savedPlan.weekOf !== weekStart) {
+        savedPlan = createEmptyWeek(weekStart);
+      }
+      // Ensure required fields exist on old/malformed saved plans
+      if (!Array.isArray(savedPlan.days)) savedPlan.days = createEmptyWeek(weekStart).days;
+      if (!savedPlan.breakfastSelections) savedPlan.breakfastSelections = [];
+      if (!savedPlan.lunchSelections) savedPlan.lunchSelections = [];
+      if (!savedPlan.snackSelections) savedPlan.snackSelections = [];
+      if (!savedPlan.otherSelections) savedPlan.otherSelections = [];
+      if (!savedPlan.otherNotes) savedPlan.otherNotes = "";
+
+      setPlan(savedPlan);
+      planRef.current = savedPlan;
+
+      const savedDeals = await readJson<Deal[]>(DEALS_FILE);
+      if (Array.isArray(savedDeals)) {
+        setDeals(savedDeals);
+        dealsRef.current = savedDeals;
+      }
+
+      const history = await readJson<string[]>(HISTORY_FILE);
+      if (Array.isArray(history)) {
+        setRecentlyUsed(history);
+        recentlyUsedRef.current = history;
+      }
+    } catch (e) {
+      console.error("Failed to load planner data:", e);
     }
-    // Ensure new fields exist on old saved plans
-    if (!savedPlan.otherSelections) savedPlan.otherSelections = [];
-    if (!savedPlan.otherNotes) savedPlan.otherNotes = "";
-
-    setPlan(savedPlan);
-    planRef.current = savedPlan;
-
-    const savedDeals = await readJson<Deal[]>(DEALS_FILE);
-    if (savedDeals) {
-      setDeals(savedDeals);
-      dealsRef.current = savedDeals;
-    }
-
-    const history = await readJson<string[]>(HISTORY_FILE);
-    if (history) {
-      setRecentlyUsed(history);
-      recentlyUsedRef.current = history;
-    }
-
     setLoaded(true);
   }
 

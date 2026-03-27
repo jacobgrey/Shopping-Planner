@@ -69,11 +69,31 @@ export function validateMealImport(data: unknown): ValidationResult {
       continue;
     }
 
+    // Validate tags: must be strings, convert spaces to hyphens for slug format
+    const rawTags = Array.isArray(meal.tags) ? (meal.tags as unknown[]) : [];
+    const validTags: string[] = [];
+    for (const tag of rawTags) {
+      if (typeof tag !== "string") {
+        warnings.push(`${prefix} ("${meal.name}"): non-string tag skipped`);
+        continue;
+      }
+      // Normalize: trim, lowercase, convert spaces to hyphens
+      const slug = tag.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "").replace(/^-|-$/g, "");
+      if (!slug) {
+        warnings.push(`${prefix} ("${meal.name}"): empty tag skipped`);
+        continue;
+      }
+      if (slug !== tag) {
+        warnings.push(`${prefix} ("${meal.name}"): tag "${tag}" normalized to "${slug}"`);
+      }
+      validTags.push(slug);
+    }
+
     validMeals.push({
       name: meal.name as string,
       sides: Array.isArray(meal.sides) ? (meal.sides as string[]) : [],
       ingredients: validIngredients,
-      tags: Array.isArray(meal.tags) ? (meal.tags as string[]) : [],
+      tags: validTags,
       prepTimeMinutes: typeof meal.prepTimeMinutes === "number" ? meal.prepTimeMinutes : undefined,
       notes: typeof meal.notes === "string" ? meal.notes : undefined,
     });

@@ -33,6 +33,7 @@ interface SettingsProps {
     updateIngredient: (id: string, updates: Partial<Omit<MasterIngredient, "id">>) => Promise<void>;
     deleteIngredient: (id: string) => Promise<void>;
   };
+  onReloadAll: () => Promise<void>;
 }
 
 function slugify(label: string): string {
@@ -43,7 +44,7 @@ function slugify(label: string): string {
     .replace(/^-|-$/g, "");
 }
 
-export default function Settings({ firstDayOfWeek, setFirstDayOfWeek, tagLib, mealLib, ingredientLib }: SettingsProps) {
+export default function Settings({ firstDayOfWeek, setFirstDayOfWeek, tagLib, mealLib, ingredientLib, onReloadAll }: SettingsProps) {
   const [currentDir] = useState(getStorageDirectory() || "");
   const [exportDir, setExportDir] = useState<string>("");
   const [status, setStatus] = useState<string | null>(null);
@@ -112,10 +113,11 @@ export default function Settings({ firstDayOfWeek, setFirstDayOfWeek, tagLib, me
         return;
       }
       const result = await importAllData(data, mode);
+      await onReloadAll();
       setStatus(
         mode === "replace"
-          ? `Replaced all data. ${result.mealsCount} meals loaded. Restart recommended.`
-          : `Merged ${result.mealsCount} new meals. Restart recommended.`
+          ? `Replaced all data. ${result.mealsCount} meals loaded.`
+          : `Merged ${result.mealsCount} new meals.`
       );
     } catch (e) {
       setStatus(`Import failed: ${e instanceof Error ? e.message : String(e)}`);
