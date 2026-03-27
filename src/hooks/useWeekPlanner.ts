@@ -205,13 +205,10 @@ export function useWeekPlanner(meals: Meal[], firstDayOfWeek: number = 0) {
   const clearWeek = useCallback(async () => {
     const p = planRef.current;
     if (!p) return;
-    const currentIds = p.days
-      .map((d) => d.assignedMealId)
-      .filter((id): id is string => !!id);
-    const updatedHistory = [...currentIds, ...recentlyUsedRef.current].slice(0, 42);
-    setRecentlyUsed(updatedHistory);
-    recentlyUsedRef.current = updatedHistory;
-    await writeJson(HISTORY_FILE, updatedHistory);
+    // Reset recent cooldowns so next auto-fill starts fresh
+    setRecentlyUsed([]);
+    recentlyUsedRef.current = [];
+    await writeJson(HISTORY_FILE, []);
 
     const updated = {
       ...p,
@@ -292,6 +289,14 @@ export function useWeekPlanner(meals: Meal[], firstDayOfWeek: number = 0) {
     [saveDeals]
   );
 
+  const updateDeal = useCallback(
+    async (index: number, deal: Deal) => {
+      const updated = dealsRef.current.map((d, i) => (i === index ? deal : d));
+      await saveDeals(updated);
+    },
+    [saveDeals]
+  );
+
   return {
     plan,
     deals,
@@ -307,5 +312,6 @@ export function useWeekPlanner(meals: Meal[], firstDayOfWeek: number = 0) {
     setOtherNotes,
     addDeal,
     removeDeal,
+    updateDeal,
   };
 }

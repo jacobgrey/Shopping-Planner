@@ -16,6 +16,7 @@ interface PlannerPageProps {
     addItem: (def: Omit<CategoryItem, "id">) => Promise<CategoryItem>;
     updateItem: (id: string, updates: Partial<Omit<CategoryItem, "id">>) => void;
     deleteItem: (id: string) => void;
+    resetQuantities: () => Promise<void>;
   };
 }
 
@@ -42,9 +43,13 @@ export default function PlannerPage({ meals, tags, masterIngredients, firstDayOf
         onAutoFill={planner.autoFillWeek}
         onRegenerateDay={planner.regenerateSingleDay}
         onClearWeek={planner.clearWeek}
-        onResetAll={planner.resetAll}
+        onResetAll={async () => {
+          await planner.resetAll();
+          await categoryItemLib.resetQuantities();
+        }}
         onAddDeal={planner.addDeal}
         onRemoveDeal={planner.removeDeal}
+        onUpdateDeal={planner.updateDeal}
       />
 
       <div>

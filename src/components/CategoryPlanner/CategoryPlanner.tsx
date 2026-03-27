@@ -182,57 +182,48 @@ function CategorySection({
         <div className="flex flex-wrap gap-2">
           {items.map((item) => {
             const isSelected = selected.includes(item.id);
+            const displayQty = item.quantity ?? 1;
+            const displayUnit = item.unit || "unit";
             return (
-              <div key={item.id} className="flex items-center gap-1">
-                <label
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm cursor-pointer transition ${
+              <div
+                key={item.id}
+                onClick={() => toggle(item.id)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm cursor-pointer select-none transition ${
+                  isSelected
+                    ? "border-blue-400 bg-blue-50 text-blue-700"
+                    : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                <span
+                  className={`w-3.5 h-3.5 rounded border flex items-center justify-center text-[10px] shrink-0 ${
                     isSelected
-                      ? "border-blue-400 bg-blue-50 text-blue-700"
-                      : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+                      ? "bg-blue-500 border-blue-500 text-white"
+                      : "border-gray-300"
                   }`}
                 >
-                  <input
-                    type="checkbox"
-                    checked={isSelected}
-                    onChange={() => toggle(item.id)}
-                    className="sr-only"
-                  />
-                  <span
-                    className={`w-3.5 h-3.5 rounded border flex items-center justify-center text-[10px] ${
-                      isSelected
-                        ? "bg-blue-500 border-blue-500 text-white"
-                        : "border-gray-300"
-                    }`}
-                  >
-                    {isSelected && "✓"}
-                  </span>
-                  {item.name}
-                </label>
-                {isSelected && (
-                  <div className="flex items-center gap-0.5">
+                  {isSelected && "✓"}
+                </span>
+                {item.name}
+                {isSelected ? (
+                  <span className="inline-flex items-center gap-0.5 text-xs opacity-70">
                     <input
                       type="number"
-                      value={item.quantity ?? ""}
+                      value={displayQty}
                       onChange={(e) =>
                         onUpdateItem(item.id, {
                           quantity: e.target.value ? parseFloat(e.target.value) : undefined,
                         })
                       }
-                      placeholder="Qty"
+                      onClick={(e) => e.stopPropagation()}
+                      onMouseDown={(e) => e.stopPropagation()}
                       min={0}
                       step="any"
-                      className="w-14 px-1.5 py-1 border border-gray-300 rounded text-xs text-center"
+                      className="w-10 px-1 py-0 bg-white/80 border border-blue-300 rounded text-xs text-center focus:outline-none focus:ring-1 focus:ring-blue-400"
                     />
-                    <input
-                      type="text"
-                      value={item.unit ?? ""}
-                      onChange={(e) =>
-                        onUpdateItem(item.id, { unit: e.target.value || undefined })
-                      }
-                      placeholder="unit"
-                      className="w-14 px-1.5 py-1 border border-gray-300 rounded text-xs"
-                    />
-                  </div>
+                    {displayUnit}
+                  </span>
+                ) : (
+                  <span className="text-xs opacity-60">{displayQty} {displayUnit}</span>
                 )}
               </div>
             );
@@ -319,7 +310,7 @@ export default function CategoryPlanner({
           value={otherNotes}
           onChange={(e) => onOtherNotesChange(e.target.value)}
           rows={3}
-          placeholder="e.g., Birthday cake&#10;Paper towels&#10;Dog food"
+          placeholder="e.g., Birthday cake&#10;Paper towels&#10;Donuts"
           className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       </div>

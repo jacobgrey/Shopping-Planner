@@ -88,6 +88,15 @@ export function useCategoryItems() {
     [items]
   );
 
+  const resetQuantities = useCallback(async () => {
+    const updated = itemsRef.current.map((i) => ({
+      ...i,
+      quantity: undefined,
+      unit: undefined,
+    }));
+    await saveItems(updated);
+  }, [saveItems]);
+
   return {
     items,
     loaded,
@@ -98,5 +107,6 @@ export function useCategoryItems() {
     addItem,
     updateItem,
     deleteItem,
+    resetQuantities,
   };
 }

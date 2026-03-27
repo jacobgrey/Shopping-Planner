@@ -20,15 +20,16 @@ export function aggregateShoppingList(
     quantity: number | undefined,
     unit: string | undefined,
     pricePerUnit: number | undefined,
-    fromMeal: string
+    fromMeal: string,
+    isMeal: boolean
   ) {
     const key = name.toLowerCase().trim();
     const existing = itemMap.get(key);
     if (existing) {
       if (!existing.fromMeals.includes(fromMeal)) {
         existing.fromMeals.push(fromMeal);
-        existing.mealCount++;
       }
+      if (isMeal) existing.mealCount++;
       if (quantity !== undefined && existing.totalQuantity !== undefined && existing.unit === unit) {
         existing.totalQuantity += quantity;
       } else if (quantity !== undefined && existing.totalQuantity === undefined) {
@@ -46,7 +47,7 @@ export function aggregateShoppingList(
         unit,
         category,
         fromMeals: [fromMeal],
-        mealCount: 1,
+        mealCount: isMeal ? 1 : 0,
         estimatedCost:
           pricePerUnit !== undefined && quantity !== undefined
             ? quantity * pricePerUnit
@@ -70,7 +71,8 @@ export function aggregateShoppingList(
         entry.quantity,
         master.defaultUnit,
         master.pricePerUnit,
-        meal.name
+        meal.name,
+        true
       );
     }
   }
@@ -96,10 +98,11 @@ export function aggregateShoppingList(
       addItem(
         catItem.name,
         catItem.category,
-        catItem.quantity,
-        catItem.unit,
+        catItem.quantity ?? 1,
+        catItem.unit || "unit",
         undefined,
-        source
+        source,
+        false
       );
     }
   }

@@ -7,6 +7,8 @@ import type { MealDefinition, MasterIngredient, IngredientEntry } from "../../ty
 interface MealImportProps {
   onAddMasterIngredient: (def: Omit<MasterIngredient, "id">) => Promise<MasterIngredient>;
   findIngredientByName: (name: string) => MasterIngredient | undefined;
+  existingTags: { id: string; label: string }[];
+  onAddTag: (label: string) => Promise<{ id: string }>;
   onImport: (
     meals: MealDefinition[],
     mode: "skip" | "overwrite"
@@ -17,6 +19,8 @@ interface MealImportProps {
 export default function MealImport({
   onAddMasterIngredient,
   findIngredientByName,
+  existingTags,
+  onAddTag,
   onImport,
   onClose,
 }: MealImportProps) {
@@ -26,6 +30,7 @@ export default function MealImport({
     skipped: number;
     overwritten: number;
     ingredientsCreated: number;
+    tagsCreated: number;
   } | null>(null);
   const [duplicateMode, setDuplicateMode] = useState<"skip" | "overwrite">("skip");
   const [importing, setImporting] = useState(false);
@@ -49,7 +54,11 @@ export default function MealImport({
 
     // Convert ImportMealDefinition[] → MealDefinition[] by creating/finding master ingredients
     let ingredientsCreated = 0;
+    let tagsCreated = 0;
     const convertedMeals: MealDefinition[] = [];
+
+    // Track known tag IDs (existing + newly created during this import)
+    const knownTagIds = new Set(existingTags.map((t) => t.id));
 
     for (const importMeal of result.meals) {
       const ingredients: IngredientEntry[] = [];
@@ -71,18 +80,34 @@ export default function MealImport({
           quantity: imp.quantity,
         });
       }
+
+      // Create missing tags
+      const resolvedTags: string[] = [];
+      for (const tagSlug of importMeal.tags) {
+        if (!knownTagIds.has(tagSlug)) {
+          // Create tag using slug as label (convert dashes to spaces, title case)
+          const label = tagSlug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+          const created = await onAddTag(label);
+          knownTagIds.add(created.id);
+          tagsCreated++;
+          resolvedTags.push(created.id);
+        } else {
+          resolvedTags.push(tagSlug);
+        }
+      }
+
       convertedMeals.push({
         name: importMeal.name,
         sides: importMeal.sides,
         ingredients,
-        tags: importMeal.tags,
+        tags: resolvedTags,
         prepTimeMinutes: importMeal.prepTimeMinutes,
         notes: importMeal.notes,
       });
     }
 
     const res = await onImport(convertedMeals, duplicateMode);
-    setImportResult({ ...res, ingredientsCreated });
+    setImportResult({ ...res, ingredientsCreated, tagsCreated });
     setImporting(false);
   }
 
@@ -177,6 +202,7 @@ export default function MealImport({
                 {importResult.overwritten > 0 && `, ${importResult.overwritten} overwritten`}
                 {importResult.skipped > 0 && `, ${importResult.skipped} skipped`}
                 . {importResult.ingredientsCreated} new ingredients added to master list.
+                {importResult.tagsCreated > 0 && ` ${importResult.tagsCreated} new tags created.`}
               </p>
               <button
                 onClick={onClose}

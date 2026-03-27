@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { Meal, MealDefinition, MasterIngredient, TagDefinition } from "../../types/meals";
 import TagBadge from "../common/TagBadge";
+import NoteText from "../common/NoteText";
 import MealEditor from "./MealEditor";
 import MealImport from "./MealImport";
 
@@ -19,6 +20,7 @@ interface MealLibraryProps {
   tagLib: {
     tags: TagDefinition[];
     loaded: boolean;
+    addTag: (label: string) => Promise<TagDefinition>;
   };
   ingredientLib: {
     ingredients: MasterIngredient[];
@@ -30,7 +32,7 @@ interface MealLibraryProps {
 
 export default function MealLibrary({ mealLib, tagLib, ingredientLib }: MealLibraryProps) {
   const { meals, loaded, addMeal, updateMeal, deleteMeal, importMeals } = mealLib;
-  const { tags, loaded: tagsLoaded } = tagLib;
+  const { tags, loaded: tagsLoaded, addTag } = tagLib;
   const { ingredients, loaded: ingsLoaded, addIngredient, findByName } = ingredientLib;
   const [searchQuery, setSearchQuery] = useState("");
   const [filterTag, setFilterTag] = useState<string>("");
@@ -97,6 +99,8 @@ export default function MealLibrary({ mealLib, tagLib, ingredientLib }: MealLibr
       <MealImport
         onAddMasterIngredient={addIngredient}
         findIngredientByName={findByName}
+        existingTags={tags}
+        onAddTag={addTag}
         onImport={importMeals}
         onClose={() => setShowImport(false)}
       />
@@ -186,6 +190,11 @@ export default function MealLibrary({ mealLib, tagLib, ingredientLib }: MealLibr
                     {meal.ingredients.length !== 1 ? "s" : ""}
                     {meal.prepTimeMinutes ? ` · ${meal.prepTimeMinutes} min` : ""}
                   </p>
+                  {meal.notes && (
+                    <p className="text-xs text-gray-400 mt-1 line-clamp-2">
+                      <NoteText text={meal.notes} className="text-xs text-gray-400" />
+                    </p>
+                  )}
                 </div>
                 <div className="flex gap-2 ml-4">
                   <button

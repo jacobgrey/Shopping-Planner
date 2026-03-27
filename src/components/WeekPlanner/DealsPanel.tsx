@@ -2,10 +2,36 @@ import { useState, useRef, useEffect } from "react";
 import type { Deal } from "../../types/planner";
 import type { MasterIngredient } from "../../types/meals";
 
+const BIAS_LABELS = ["Slight", "Medium", "Strong"] as const;
+
+function BiasSlider({
+  value,
+  onChange,
+}: {
+  value: 1 | 2 | 3;
+  onChange: (v: 1 | 2 | 3) => void;
+}) {
+  return (
+    <div className="flex flex-col items-center gap-0.5 min-w-[80px]">
+      <input
+        type="range"
+        min={1}
+        max={3}
+        step={1}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value) as 1 | 2 | 3)}
+        className="w-full h-1.5 accent-green-600 cursor-pointer"
+      />
+      <span className="text-[10px] text-gray-500">{BIAS_LABELS[value - 1]}</span>
+    </div>
+  );
+}
+
 interface DealsPanelProps {
   deals: Deal[];
   onAddDeal: (deal: Deal) => void;
   onRemoveDeal: (index: number) => void;
+  onUpdateDeal: (index: number, deal: Deal) => void;
   masterIngredients: MasterIngredient[];
 }
 
@@ -21,6 +47,7 @@ export default function DealsPanel({
   deals,
   onAddDeal,
   onRemoveDeal,
+  onUpdateDeal,
   masterIngredients,
 }: DealsPanelProps) {
   const [name, setName] = useState("");
@@ -127,15 +154,7 @@ export default function DealsPanel({
             </ul>
           )}
         </div>
-        <select
-          value={strength}
-          onChange={(e) => setStrength(Number(e.target.value) as 1 | 2 | 3)}
-          className="px-2 py-1.5 border border-gray-300 rounded text-sm"
-        >
-          <option value={1}>Slight</option>
-          <option value={2}>Medium</option>
-          <option value={3}>Strong</option>
-        </select>
+        <BiasSlider value={strength} onChange={setStrength} />
         <button
           onClick={handleAdd}
           disabled={!name.trim()}
@@ -155,19 +174,20 @@ export default function DealsPanel({
             return (
               <li
                 key={i}
-                className="flex items-center justify-between text-sm py-1 px-2 bg-green-50 rounded"
+                className="flex items-center gap-2 text-sm py-1 px-2 bg-green-50 rounded"
               >
-                <span className="text-gray-700">
+                <span className="text-gray-700 flex-1">
                   {deal.ingredientName}
-                  <span className="text-xs text-green-600 ml-2">
-                    bias: {deal.biasStrength === 1 ? "slight" : deal.biasStrength === 2 ? "medium" : "strong"}
-                  </span>
                   {!matched && (
                     <span className="text-xs text-amber-600 ml-2" title="This ingredient is not in your master ingredient list and won't affect meal selection">
                       ⚠ not in ingredient list
                     </span>
                   )}
                 </span>
+                <BiasSlider
+                  value={deal.biasStrength}
+                  onChange={(v) => onUpdateDeal(i, { ...deal, biasStrength: v })}
+                />
                 <button
                   onClick={() => onRemoveDeal(i)}
                   className="text-red-400 hover:text-red-600 text-xs"

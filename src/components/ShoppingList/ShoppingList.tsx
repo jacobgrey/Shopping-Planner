@@ -120,7 +120,7 @@ export default function ShoppingList({ plan, meals, masterIngredients, categoryI
             <SortButton
               active={sortMode === "by-category"}
               onClick={() => setSortMode("by-category")}
-              label="By Store"
+              label="By Dept"
             />
             <SortButton
               active={sortMode === "by-meal"}
@@ -186,19 +186,11 @@ export default function ShoppingList({ plan, meals, masterIngredients, categoryI
                     >
                       {item.ingredientName}
                     </span>
-                    {/* Meal count + quantity */}
+                    {/* Quantity */}
                     <span className="text-xs text-gray-500">
-                      {item.mealCount > 0 && (
-                        <span>
-                          {item.mealCount} meal{item.mealCount !== 1 ? "s" : ""}
-                        </span>
-                      )}
-                      {item.mealCount > 0 && item.totalQuantity != null && ", "}
-                      {item.totalQuantity != null && (
-                        <span>
-                          {item.totalQuantity} {item.unit || ""}
-                        </span>
-                      )}
+                      {item.totalQuantity != null
+                        ? `${item.totalQuantity} ${item.unit || ""}`
+                        : ""}
                     </span>
                     {sortMode === "by-category" && item.fromMeals.length > 0 && (
                       <span className="text-xs text-gray-400 max-w-48 truncate">

@@ -1,4 +1,4 @@
-import { useState, useEffect, Component } from "react";
+import { useState, useEffect, useRef, Component } from "react";
 import type { ReactNode } from "react";
 import {
   getDataDirectory,
@@ -166,6 +166,60 @@ function MainApp({
       });
     }
   }, [activeTab]);
+
+  // Fix #11: On startup, check for orphaned tags and ingredients and add them to master lists
+  const orphanCheckDone = useRef(false);
+  useEffect(() => {
+    if (
+      orphanCheckDone.current ||
+      !mealLib.loaded ||
+      !tagLib.loaded ||
+      !ingredientLib.loaded
+    )
+      return;
+    orphanCheckDone.current = true;
+
+    const tagIds = new Set(tagLib.tags.map((t) => t.id));
+    const ingredientIds = new Set(ingredientLib.ingredients.map((i) => i.id));
+
+    // Collect orphaned tags and ingredients from meals
+    const orphanedTags = new Set<string>();
+    const orphanedIngredientIds = new Set<string>();
+
+    for (const meal of mealLib.meals) {
+      for (const tagSlug of meal.tags) {
+        if (!tagIds.has(tagSlug)) orphanedTags.add(tagSlug);
+      }
+      for (const entry of meal.ingredients) {
+        if (!ingredientIds.has(entry.ingredientId)) {
+          orphanedIngredientIds.add(entry.ingredientId);
+        }
+      }
+    }
+
+    // Create missing tags
+    for (const tagSlug of orphanedTags) {
+      const label = tagSlug
+        .replace(/-/g, " ")
+        .replace(/\b\w/g, (c) => c.toUpperCase());
+      tagLib.addTag(label);
+    }
+
+    // Create placeholder ingredients with the exact orphaned IDs
+    // so meal references resolve correctly
+    if (orphanedIngredientIds.size > 0) {
+      const placeholders = [...orphanedIngredientIds].map((id) => ({
+        id,
+        name: `Unknown (${id.slice(0, 8)})`,
+        category: "other" as const,
+        defaultUnit: "each",
+      }));
+      ingredientLib.saveIngredients([
+        ...ingredientLib.ingredients,
+        ...placeholders,
+      ]);
+    }
+  }, [mealLib.loaded, tagLib.loaded, ingredientLib.loaded]);
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">

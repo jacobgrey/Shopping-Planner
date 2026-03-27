@@ -23,6 +23,7 @@ interface WeekPlannerProps {
   onResetAll: () => void;
   onAddDeal: (deal: Deal) => void;
   onRemoveDeal: (index: number) => void;
+  onUpdateDeal: (index: number, deal: Deal) => void;
 }
 
 export default function WeekPlanner({
@@ -42,6 +43,7 @@ export default function WeekPlanner({
   onResetAll,
   onAddDeal,
   onRemoveDeal,
+  onUpdateDeal,
 }: WeekPlannerProps) {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
 
@@ -114,7 +116,7 @@ export default function WeekPlanner({
         ))}
       </div>
 
-      <DealsPanel deals={deals} onAddDeal={onAddDeal} onRemoveDeal={onRemoveDeal} masterIngredients={masterIngredients} />
+      <DealsPanel deals={deals} onAddDeal={onAddDeal} onRemoveDeal={onRemoveDeal} onUpdateDeal={onUpdateDeal} masterIngredients={masterIngredients} />
     </div>
   );
 }
