@@ -1,21 +1,44 @@
 import { useState } from "react";
-import { useMealLibrary } from "../../hooks/useMealLibrary";
-import type { Meal, MealDefinition } from "../../types/meals";
-import { MEAL_TAGS } from "../../types/meals";
+import type { Meal, MealDefinition, MasterIngredient, TagDefinition } from "../../types/meals";
 import TagBadge from "../common/TagBadge";
 import MealEditor from "./MealEditor";
 import MealImport from "./MealImport";
 
-export default function MealLibrary() {
-  const { meals, loaded, addMeal, updateMeal, deleteMeal, importMeals, allIngredientNames } =
-    useMealLibrary();
+interface MealLibraryProps {
+  mealLib: {
+    meals: Meal[];
+    loaded: boolean;
+    addMeal: (def: MealDefinition) => Promise<Meal>;
+    updateMeal: (id: string, def: Partial<MealDefinition>) => Promise<void>;
+    deleteMeal: (id: string) => Promise<void>;
+    importMeals: (
+      defs: MealDefinition[],
+      mode: "skip" | "overwrite"
+    ) => Promise<{ added: number; skipped: number; overwritten: number }>;
+  };
+  tagLib: {
+    tags: TagDefinition[];
+    loaded: boolean;
+  };
+  ingredientLib: {
+    ingredients: MasterIngredient[];
+    loaded: boolean;
+    addIngredient: (def: Omit<MasterIngredient, "id">) => Promise<MasterIngredient>;
+    findByName: (name: string) => MasterIngredient | undefined;
+  };
+}
+
+export default function MealLibrary({ mealLib, tagLib, ingredientLib }: MealLibraryProps) {
+  const { meals, loaded, addMeal, updateMeal, deleteMeal, importMeals } = mealLib;
+  const { tags, loaded: tagsLoaded } = tagLib;
+  const { ingredients, loaded: ingsLoaded, addIngredient, findByName } = ingredientLib;
   const [searchQuery, setSearchQuery] = useState("");
   const [filterTag, setFilterTag] = useState<string>("");
   const [editingMeal, setEditingMeal] = useState<Meal | null>(null);
   const [showEditor, setShowEditor] = useState(false);
   const [showImport, setShowImport] = useState(false);
 
-  if (!loaded) {
+  if (!loaded || !tagsLoaded || !ingsLoaded) {
     return <p className="text-gray-500">Loading meals...</p>;
   }
 
@@ -47,20 +70,24 @@ export default function MealLibrary() {
     setEditingMeal(null);
   }
 
-  async function handleDeleteMeal(id: string) {
-    await deleteMeal(id);
+  async function handleAddMasterIngredient(
+    def: Omit<MasterIngredient, "id">
+  ): Promise<MasterIngredient> {
+    return await addIngredient(def);
   }
 
   if (showEditor) {
     return (
       <MealEditor
         meal={editingMeal}
-        allIngredientNames={allIngredientNames()}
+        masterIngredients={ingredients}
+        availableTags={tags}
         onSave={handleSaveMeal}
         onCancel={() => {
           setShowEditor(false);
           setEditingMeal(null);
         }}
+        onAddMasterIngredient={handleAddMasterIngredient}
       />
     );
   }
@@ -68,6 +95,8 @@ export default function MealLibrary() {
   if (showImport) {
     return (
       <MealImport
+        onAddMasterIngredient={addIngredient}
+        findIngredientByName={findByName}
         onImport={importMeals}
         onClose={() => setShowImport(false)}
       />
@@ -99,7 +128,6 @@ export default function MealLibrary() {
         </div>
       </div>
 
-      {/* Search and filter */}
       <div className="flex gap-3 mb-4">
         <input
           type="text"
@@ -114,23 +142,20 @@ export default function MealLibrary() {
           className="px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="">All tags</option>
-          {MEAL_TAGS.map((tag) => (
-            <option key={tag} value={tag}>
-              {tag.replace(/-/g, " ")}
+          {tags.map((tag) => (
+            <option key={tag.id} value={tag.id}>
+              {tag.label}
             </option>
           ))}
         </select>
       </div>
 
-      {/* Meal list */}
       {filtered.length === 0 ? (
         <div className="text-center py-12 text-gray-500">
           {meals.length === 0 ? (
             <div>
               <p className="text-lg mb-2">No meals yet</p>
-              <p className="text-sm">
-                Add meals manually or import them from a JSON file.
-              </p>
+              <p className="text-sm">Add meals manually or import them from a JSON file.</p>
             </div>
           ) : (
             <p>No meals match your search.</p>
@@ -146,26 +171,20 @@ export default function MealLibrary() {
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-1">
-                    <h3 className="font-semibold text-gray-800">
-                      {meal.name}
-                    </h3>
+                    <h3 className="font-semibold text-gray-800">{meal.name}</h3>
                     {meal.sides && meal.sides.length > 0 && (
-                      <span className="text-xs text-gray-500">
-                        + {meal.sides.join(", ")}
-                      </span>
+                      <span className="text-xs text-gray-500">+ {meal.sides.join(", ")}</span>
                     )}
                   </div>
                   <div className="flex flex-wrap gap-1 mb-2">
                     {meal.tags.map((tag) => (
-                      <TagBadge key={tag} tag={tag} />
+                      <TagBadge key={tag} tag={tag} allTags={tags} />
                     ))}
                   </div>
                   <p className="text-sm text-gray-500">
                     {meal.ingredients.length} ingredient
                     {meal.ingredients.length !== 1 ? "s" : ""}
-                    {meal.prepTimeMinutes
-                      ? ` · ${meal.prepTimeMinutes} min`
-                      : ""}
+                    {meal.prepTimeMinutes ? ` · ${meal.prepTimeMinutes} min` : ""}
                   </p>
                 </div>
                 <div className="flex gap-2 ml-4">
@@ -176,7 +195,7 @@ export default function MealLibrary() {
                     Edit
                   </button>
                   <button
-                    onClick={() => handleDeleteMeal(meal.id)}
+                    onClick={() => deleteMeal(meal.id)}
                     className="text-sm text-red-500 hover:text-red-700"
                   >
                     Delete

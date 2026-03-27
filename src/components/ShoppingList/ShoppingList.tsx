@@ -1,4 +1,4 @@
-import type { Meal } from "../../types/meals";
+import type { Meal, MasterIngredient, CategoryItem } from "../../types/meals";
 import type { WeekPlan } from "../../types/planner";
 import { useShoppingList } from "../../hooks/useShoppingList";
 import { STORE_CATEGORY_LABELS } from "../../data/store-categories";
@@ -6,11 +6,13 @@ import { STORE_CATEGORY_LABELS } from "../../data/store-categories";
 interface ShoppingListProps {
   plan: WeekPlan | null;
   meals: Meal[];
+  masterIngredients: MasterIngredient[];
+  categoryItems: CategoryItem[];
 }
 
-export default function ShoppingList({ plan, meals }: ShoppingListProps) {
+export default function ShoppingList({ plan, meals, masterIngredients, categoryItems }: ShoppingListProps) {
   const { items, sortMode, setSortMode, toggleItem, uncheckAll, totalEstimatedCost } =
-    useShoppingList(plan, meals);
+    useShoppingList(plan, meals, masterIngredients, categoryItems);
 
   if (!plan) {
     return <p className="text-gray-500">Loading...</p>;
@@ -18,20 +20,15 @@ export default function ShoppingList({ plan, meals }: ShoppingListProps) {
 
   const checkedCount = items.filter((i) => i.checked).length;
 
-  // Group items for display
   let groups: { label: string; items: typeof items }[] = [];
   if (sortMode === "by-category") {
     const categoryMap = new Map<string, typeof items>();
     for (const item of items) {
-      const label =
-        STORE_CATEGORY_LABELS[item.category] || item.category;
+      const label = STORE_CATEGORY_LABELS[item.category] || item.category;
       if (!categoryMap.has(label)) categoryMap.set(label, []);
       categoryMap.get(label)!.push(item);
     }
-    groups = Array.from(categoryMap.entries()).map(([label, items]) => ({
-      label,
-      items,
-    }));
+    groups = Array.from(categoryMap.entries()).map(([label, items]) => ({ label, items }));
   } else {
     const mealMap = new Map<string, typeof items>();
     for (const item of items) {
@@ -39,10 +36,7 @@ export default function ShoppingList({ plan, meals }: ShoppingListProps) {
       if (!mealMap.has(label)) mealMap.set(label, []);
       mealMap.get(label)!.push(item);
     }
-    groups = Array.from(mealMap.entries()).map(([label, items]) => ({
-      label,
-      items,
-    }));
+    groups = Array.from(mealMap.entries()).map(([label, items]) => ({ label, items }));
   }
 
   return (
@@ -73,10 +67,7 @@ export default function ShoppingList({ plan, meals }: ShoppingListProps) {
             />
           </div>
           {checkedCount > 0 && (
-            <button
-              onClick={uncheckAll}
-              className="text-sm text-gray-500 hover:text-gray-700"
-            >
+            <button onClick={uncheckAll} className="text-sm text-gray-500 hover:text-gray-700">
               Uncheck all
             </button>
           )}
@@ -86,9 +77,7 @@ export default function ShoppingList({ plan, meals }: ShoppingListProps) {
       {items.length === 0 ? (
         <div className="text-center py-12 text-gray-500">
           <p className="text-lg mb-2">No items yet</p>
-          <p className="text-sm">
-            Assign meals in the Planner tab to generate your shopping list.
-          </p>
+          <p className="text-sm">Assign meals in the Planner tab to generate your shopping list.</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -113,24 +102,31 @@ export default function ShoppingList({ plan, meals }: ShoppingListProps) {
                     />
                     <span
                       className={`flex-1 text-sm ${
-                        item.checked
-                          ? "line-through text-gray-400"
-                          : "text-gray-800"
+                        item.checked ? "line-through text-gray-400" : "text-gray-800"
                       }`}
                     >
                       {item.ingredientName}
-                      {item.totalQuantity !== undefined && (
-                        <span className="text-gray-500 ml-1">
-                          — {item.totalQuantity} {item.unit || ""}
+                    </span>
+                    {/* Meal count + quantity */}
+                    <span className="text-xs text-gray-500">
+                      {item.mealCount > 0 && (
+                        <span>
+                          {item.mealCount} meal{item.mealCount !== 1 ? "s" : ""}
+                        </span>
+                      )}
+                      {item.mealCount > 0 && item.totalQuantity != null && ", "}
+                      {item.totalQuantity != null && (
+                        <span>
+                          {item.totalQuantity} {item.unit || ""}
                         </span>
                       )}
                     </span>
                     {sortMode === "by-category" && item.fromMeals.length > 0 && (
-                      <span className="text-xs text-gray-400">
+                      <span className="text-xs text-gray-400 max-w-48 truncate">
                         {item.fromMeals.join(", ")}
                       </span>
                     )}
-                    {item.estimatedCost !== undefined && (
+                    {item.estimatedCost != null && (
                       <span className="text-xs text-green-600">
                         ${item.estimatedCost.toFixed(2)}
                       </span>
@@ -146,22 +142,12 @@ export default function ShoppingList({ plan, meals }: ShoppingListProps) {
   );
 }
 
-function SortButton({
-  active,
-  onClick,
-  label,
-}: {
-  active: boolean;
-  onClick: () => void;
-  label: string;
-}) {
+function SortButton({ active, onClick, label }: { active: boolean; onClick: () => void; label: string }) {
   return (
     <button
       onClick={onClick}
       className={`px-3 py-1.5 text-xs font-medium transition ${
-        active
-          ? "bg-blue-600 text-white"
-          : "bg-white text-gray-600 hover:bg-gray-50"
+        active ? "bg-blue-600 text-white" : "bg-white text-gray-600 hover:bg-gray-50"
       }`}
     >
       {label}

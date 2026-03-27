@@ -11,6 +11,8 @@ export interface WeekPlan {
   breakfastSelections: string[];
   lunchSelections: string[];
   snackSelections: string[];
+  otherSelections: string[];
+  otherNotes: string;
 }
 
 export interface Deal {

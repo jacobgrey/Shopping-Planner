@@ -1,4 +1,4 @@
-import type { Meal } from "../../types/meals";
+import type { Meal, TagDefinition } from "../../types/meals";
 import type { DayPlan, Deal } from "../../types/planner";
 import DayCard from "./DayCard";
 import DealsPanel from "./DealsPanel";
@@ -8,6 +8,7 @@ interface WeekPlannerProps {
   days: DayPlan[];
   deals: Deal[];
   meals: Meal[];
+  availableTags: TagDefinition[];
   onSetDayTags: (dayOfWeek: number, tags: string[]) => void;
   onToggleLock: (dayOfWeek: number) => void;
   onSetDayMeal: (dayOfWeek: number, mealId: string | undefined) => void;
@@ -23,6 +24,7 @@ export default function WeekPlanner({
   days,
   deals,
   meals,
+  availableTags,
   onSetDayTags,
   onToggleLock,
   onSetDayMeal,
@@ -74,6 +76,7 @@ export default function WeekPlanner({
             day={day}
             meal={getMeal(day.assignedMealId)}
             allMeals={meals}
+            availableTags={availableTags}
             onTagsChange={(tags) => onSetDayTags(day.dayOfWeek, tags)}
             onToggleLock={() => onToggleLock(day.dayOfWeek)}
             onRegenerate={() => onRegenerateDay(day.dayOfWeek)}

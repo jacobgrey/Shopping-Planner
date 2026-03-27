@@ -1,23 +1,27 @@
 import { useState, useMemo, useCallback } from "react";
-import type { Meal } from "../types/meals";
+import type { Meal, MasterIngredient, CategoryItem } from "../types/meals";
 import type { WeekPlan } from "../types/planner";
 import type { ShoppingItem, ShoppingListSort } from "../types/shopping";
 import { aggregateShoppingList } from "../lib/shoppingAggregator";
 import { STORE_CATEGORY_ORDER } from "../data/store-categories";
 
-export function useShoppingList(plan: WeekPlan | null, meals: Meal[]) {
+export function useShoppingList(
+  plan: WeekPlan | null,
+  meals: Meal[],
+  masterIngredients: MasterIngredient[],
+  categoryItems: CategoryItem[]
+) {
   const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
   const [sortMode, setSortMode] = useState<ShoppingListSort>("by-category");
 
   const items = useMemo<ShoppingItem[]>(() => {
     if (!plan) return [];
-    const list = aggregateShoppingList(plan, meals);
-    // Apply checked state
+    const list = aggregateShoppingList(plan, meals, masterIngredients, categoryItems);
     return list.map((item) => ({
       ...item,
       checked: checkedItems.has(item.ingredientName.toLowerCase()),
     }));
-  }, [plan, meals, checkedItems]);
+  }, [plan, meals, masterIngredients, categoryItems, checkedItems]);
 
   const sortedItems = useMemo(() => {
     const sorted = [...items];
@@ -43,18 +47,13 @@ export function useShoppingList(plan: WeekPlan | null, meals: Meal[]) {
     const key = ingredientName.toLowerCase();
     setCheckedItems((prev) => {
       const next = new Set(prev);
-      if (next.has(key)) {
-        next.delete(key);
-      } else {
-        next.add(key);
-      }
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
       return next;
     });
   }, []);
 
-  const uncheckAll = useCallback(() => {
-    setCheckedItems(new Set());
-  }, []);
+  const uncheckAll = useCallback(() => setCheckedItems(new Set()), []);
 
   const totalEstimatedCost = useMemo(() => {
     let total = 0;
@@ -68,12 +67,5 @@ export function useShoppingList(plan: WeekPlan | null, meals: Meal[]) {
     return hasAny ? total : null;
   }, [items]);
 
-  return {
-    items: sortedItems,
-    sortMode,
-    setSortMode,
-    toggleItem,
-    uncheckAll,
-    totalEstimatedCost,
-  };
+  return { items: sortedItems, sortMode, setSortMode, toggleItem, uncheckAll, totalEstimatedCost };
 }

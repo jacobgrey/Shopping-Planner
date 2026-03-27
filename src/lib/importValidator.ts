@@ -1,17 +1,16 @@
-import { STORE_CATEGORIES, type MealDefinition } from "../types/meals";
+import { STORE_CATEGORIES, type ImportMealDefinition } from "../types/meals";
 
 export interface ValidationResult {
   valid: boolean;
-  meals: MealDefinition[];
+  meals: ImportMealDefinition[];
   warnings: string[];
   errors: string[];
 }
 
-/** Validate a MealImport JSON object */
 export function validateMealImport(data: unknown): ValidationResult {
   const warnings: string[] = [];
   const errors: string[] = [];
-  const validMeals: MealDefinition[] = [];
+  const validMeals: ImportMealDefinition[] = [];
 
   if (!data || typeof data !== "object") {
     return { valid: false, meals: [], warnings: [], errors: ["Invalid JSON: not an object"] };
@@ -60,7 +59,7 @@ export function validateMealImport(data: unknown): ValidationResult {
         name: ing.name as string,
         quantity: typeof ing.quantity === "number" ? ing.quantity : undefined,
         unit: typeof ing.unit === "string" ? ing.unit : undefined,
-        category: category as MealDefinition["ingredients"][0]["category"],
+        category: category as ImportMealDefinition["ingredients"][0]["category"],
         priceEstimate: typeof ing.priceEstimate === "number" ? ing.priceEstimate : undefined,
       });
     }
@@ -88,7 +87,6 @@ export function validateMealImport(data: unknown): ValidationResult {
   };
 }
 
-/** Parse a raw JSON string and validate as MealImport */
 export function parseMealImportJson(jsonString: string): ValidationResult {
   try {
     const data = JSON.parse(jsonString);

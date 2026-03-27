@@ -1,16 +1,17 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type { Meal, MealDefinition } from "../types/meals";
 import { readJson, writeJson } from "../lib/storage";
 
 const MEALS_FILE = "meals.json";
 
-function generateId(): string {
-  return crypto.randomUUID();
-}
-
 export function useMealLibrary() {
   const [meals, setMeals] = useState<Meal[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const mealsRef = useRef<Meal[]>([]);
+
+  useEffect(() => {
+    mealsRef.current = meals;
+  }, [meals]);
 
   useEffect(() => {
     loadMeals();
@@ -18,13 +19,14 @@ export function useMealLibrary() {
 
   async function loadMeals() {
     const data = await readJson<Meal[]>(MEALS_FILE);
-    if (data) {
-      setMeals(data);
-    }
+    const list = data || [];
+    setMeals(list);
+    mealsRef.current = list;
     setLoaded(true);
   }
 
   const saveMeals = useCallback(async (updated: Meal[]) => {
+    mealsRef.current = updated;
     setMeals(updated);
     await writeJson(MEALS_FILE, updated);
   }, []);
@@ -33,32 +35,27 @@ export function useMealLibrary() {
     async (def: MealDefinition): Promise<Meal> => {
       const meal: Meal = {
         ...def,
-        id: generateId(),
+        id: crypto.randomUUID(),
         createdAt: new Date().toISOString(),
       };
-      const updated = [...meals, meal];
-      await saveMeals(updated);
+      await saveMeals([...mealsRef.current, meal]);
       return meal;
     },
-    [meals, saveMeals]
+    [saveMeals]
   );
 
   const updateMeal = useCallback(
     async (id: string, def: Partial<MealDefinition>) => {
-      const updated = meals.map((m) =>
-        m.id === id ? { ...m, ...def } : m
-      );
-      await saveMeals(updated);
+      await saveMeals(mealsRef.current.map((m) => (m.id === id ? { ...m, ...def } : m)));
     },
-    [meals, saveMeals]
+    [saveMeals]
   );
 
   const deleteMeal = useCallback(
     async (id: string) => {
-      const updated = meals.filter((m) => m.id !== id);
-      await saveMeals(updated);
+      await saveMeals(mealsRef.current.filter((m) => m.id !== id));
     },
-    [meals, saveMeals]
+    [saveMeals]
   );
 
   const importMeals = useCallback(
@@ -69,7 +66,7 @@ export function useMealLibrary() {
       let added = 0;
       let skipped = 0;
       let overwritten = 0;
-      const updated = [...meals];
+      const updated = [...mealsRef.current];
 
       for (const def of defs) {
         const existingIdx = updated.findIndex(
@@ -77,10 +74,7 @@ export function useMealLibrary() {
         );
         if (existingIdx >= 0) {
           if (mode === "overwrite") {
-            updated[existingIdx] = {
-              ...updated[existingIdx],
-              ...def,
-            };
+            updated[existingIdx] = { ...updated[existingIdx], ...def };
             overwritten++;
           } else {
             skipped++;
@@ -88,7 +82,7 @@ export function useMealLibrary() {
         } else {
           updated.push({
             ...def,
-            id: generateId(),
+            id: crypto.randomUUID(),
             createdAt: new Date().toISOString(),
           });
           added++;
@@ -98,27 +92,8 @@ export function useMealLibrary() {
       await saveMeals(updated);
       return { added, skipped, overwritten };
     },
-    [meals, saveMeals]
+    [saveMeals]
   );
 
-  /** Get all unique ingredient names across all meals (for autocomplete) */
-  const allIngredientNames = useCallback((): string[] => {
-    const names = new Set<string>();
-    for (const meal of meals) {
-      for (const ing of meal.ingredients) {
-        names.add(ing.name.toLowerCase());
-      }
-    }
-    return Array.from(names).sort();
-  }, [meals]);
-
-  return {
-    meals,
-    loaded,
-    addMeal,
-    updateMeal,
-    deleteMeal,
-    importMeals,
-    allIngredientNames,
-  };
+  return { meals, loaded, addMeal, updateMeal, deleteMeal, importMeals };
 }

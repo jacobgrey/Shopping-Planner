@@ -6,6 +6,7 @@ export interface ShoppingItem {
   unit?: string;
   category: StoreCategory;
   fromMeals: string[];
+  mealCount: number;
   estimatedCost?: number;
   checked: boolean;
 }

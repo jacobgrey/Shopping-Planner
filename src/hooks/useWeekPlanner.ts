@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type { WeekPlan, Deal } from "../types/planner";
 import type { Meal } from "../types/meals";
 import { readJson, writeJson } from "../lib/storage";
@@ -28,6 +28,8 @@ function createEmptyWeek(weekOf: string): WeekPlan {
     breakfastSelections: [],
     lunchSelections: [],
     snackSelections: [],
+    otherSelections: [],
+    otherNotes: "",
   };
 }
 
@@ -37,6 +39,20 @@ export function useWeekPlanner(meals: Meal[]) {
   const [recentlyUsed, setRecentlyUsed] = useState<string[]>([]);
   const [loaded, setLoaded] = useState(false);
 
+  const planRef = useRef<WeekPlan | null>(null);
+  const dealsRef = useRef<Deal[]>([]);
+  const recentlyUsedRef = useRef<string[]>([]);
+
+  useEffect(() => {
+    planRef.current = plan;
+  }, [plan]);
+  useEffect(() => {
+    dealsRef.current = deals;
+  }, [deals]);
+  useEffect(() => {
+    recentlyUsedRef.current = recentlyUsed;
+  }, [recentlyUsed]);
+
   useEffect(() => {
     loadData();
   }, []);
@@ -45,64 +61,79 @@ export function useWeekPlanner(meals: Meal[]) {
     const monday = getMonday();
     let savedPlan = await readJson<WeekPlan>(PLAN_FILE);
     if (!savedPlan || savedPlan.weekOf !== monday) {
-      // New week or no saved plan
       savedPlan = createEmptyWeek(monday);
     }
+    // Ensure new fields exist on old saved plans
+    if (!savedPlan.otherSelections) savedPlan.otherSelections = [];
+    if (!savedPlan.otherNotes) savedPlan.otherNotes = "";
+
     setPlan(savedPlan);
+    planRef.current = savedPlan;
 
     const savedDeals = await readJson<Deal[]>(DEALS_FILE);
-    if (savedDeals) setDeals(savedDeals);
+    if (savedDeals) {
+      setDeals(savedDeals);
+      dealsRef.current = savedDeals;
+    }
 
     const history = await readJson<string[]>(HISTORY_FILE);
-    if (history) setRecentlyUsed(history);
+    if (history) {
+      setRecentlyUsed(history);
+      recentlyUsedRef.current = history;
+    }
 
     setLoaded(true);
   }
 
   const savePlan = useCallback(async (updated: WeekPlan) => {
+    planRef.current = updated;
     setPlan(updated);
     await writeJson(PLAN_FILE, updated);
   }, []);
 
   const saveDeals = useCallback(async (updated: Deal[]) => {
+    dealsRef.current = updated;
     setDeals(updated);
     await writeJson(DEALS_FILE, updated);
   }, []);
 
   const setDayTags = useCallback(
     async (dayOfWeek: number, tags: string[]) => {
-      if (!plan) return;
+      const p = planRef.current;
+      if (!p) return;
       const updated = {
-        ...plan,
-        days: plan.days.map((d) =>
+        ...p,
+        days: p.days.map((d) =>
           d.dayOfWeek === dayOfWeek ? { ...d, tags } : d
         ),
       };
       await savePlan(updated);
     },
-    [plan, savePlan]
+    [savePlan]
   );
 
   const toggleLock = useCallback(
     async (dayOfWeek: number) => {
-      if (!plan) return;
+      const p = planRef.current;
+      if (!p) return;
       const updated = {
-        ...plan,
-        days: plan.days.map((d) =>
+        ...p,
+        days: p.days.map((d) =>
           d.dayOfWeek === dayOfWeek ? { ...d, locked: !d.locked } : d
         ),
       };
       await savePlan(updated);
     },
-    [plan, savePlan]
+    [savePlan]
   );
 
   const setDayMeal = useCallback(
     async (dayOfWeek: number, mealId: string | undefined) => {
-      if (!plan) return;
+      const p = planRef.current;
+      if (!p) return;
       const updated = {
-        ...plan,
-        days: plan.days.map((d) =>
+        ...p,
+        days: p.days.map((d) =>
           d.dayOfWeek === dayOfWeek
             ? { ...d, assignedMealId: mealId, locked: !!mealId }
             : d
@@ -110,33 +141,46 @@ export function useWeekPlanner(meals: Meal[]) {
       };
       await savePlan(updated);
     },
-    [plan, savePlan]
+    [savePlan]
   );
 
   const autoFillWeek = useCallback(async () => {
-    if (!plan) return;
-    const assignments = selectMealsForWeek(meals, plan.days, deals, recentlyUsed);
+    const p = planRef.current;
+    if (!p) return;
+    const assignments = selectMealsForWeek(
+      meals,
+      p.days,
+      dealsRef.current,
+      recentlyUsedRef.current
+    );
     const updated = {
-      ...plan,
-      days: plan.days.map((d) => {
+      ...p,
+      days: p.days.map((d) => {
         if (d.locked) return d;
         const mealId = assignments.get(d.dayOfWeek);
         return mealId ? { ...d, assignedMealId: mealId } : d;
       }),
     };
     await savePlan(updated);
-  }, [plan, meals, deals, recentlyUsed, savePlan]);
+  }, [meals, savePlan]);
 
   const regenerateSingleDay = useCallback(
     async (dayOfWeek: number) => {
-      if (!plan) return;
-      const day = plan.days.find((d) => d.dayOfWeek === dayOfWeek);
+      const p = planRef.current;
+      if (!p) return;
+      const day = p.days.find((d) => d.dayOfWeek === dayOfWeek);
       if (!day) return;
-      const newMealId = regenerateDay(meals, day, plan.days, deals, recentlyUsed);
+      const newMealId = regenerateDay(
+        meals,
+        day,
+        p.days,
+        dealsRef.current,
+        recentlyUsedRef.current
+      );
       if (newMealId) {
         const updated = {
-          ...plan,
-          days: plan.days.map((d) =>
+          ...p,
+          days: p.days.map((d) =>
             d.dayOfWeek === dayOfWeek
               ? { ...d, assignedMealId: newMealId, locked: false }
               : d
@@ -145,56 +189,68 @@ export function useWeekPlanner(meals: Meal[]) {
         await savePlan(updated);
       }
     },
-    [plan, meals, deals, recentlyUsed, savePlan]
+    [meals, savePlan]
   );
 
   const clearWeek = useCallback(async () => {
-    if (!plan) return;
-    // Save current assignments to history before clearing
-    const currentIds = plan.days
+    const p = planRef.current;
+    if (!p) return;
+    const currentIds = p.days
       .map((d) => d.assignedMealId)
       .filter((id): id is string => !!id);
-    const updatedHistory = [...currentIds, ...recentlyUsed].slice(0, 42); // Keep ~6 weeks
+    const updatedHistory = [...currentIds, ...recentlyUsedRef.current].slice(0, 42);
     setRecentlyUsed(updatedHistory);
+    recentlyUsedRef.current = updatedHistory;
     await writeJson(HISTORY_FILE, updatedHistory);
 
     const updated = {
-      ...plan,
-      days: plan.days.map((d) => ({
+      ...p,
+      days: p.days.map((d) => ({
         ...d,
         assignedMealId: undefined,
         locked: false,
       })),
     };
     await savePlan(updated);
-  }, [plan, recentlyUsed, savePlan]);
+  }, [savePlan]);
 
   const setCategorySelections = useCallback(
     async (
-      category: "breakfastSelections" | "lunchSelections" | "snackSelections",
+      category: "breakfastSelections" | "lunchSelections" | "snackSelections" | "otherSelections",
       selections: string[]
     ) => {
-      if (!plan) return;
-      const updated = { ...plan, [category]: selections };
+      const p = planRef.current;
+      if (!p) return;
+      const updated = { ...p, [category]: selections };
       await savePlan(updated);
     },
-    [plan, savePlan]
+    [savePlan]
+  );
+
+  const setOtherNotes = useCallback(
+    async (notes: string) => {
+      const p = planRef.current;
+      if (!p) return;
+      const updated = { ...p, otherNotes: notes };
+      await savePlan(updated);
+    },
+    [savePlan]
   );
 
   const addDeal = useCallback(
     async (deal: Deal) => {
-      const updated = [...deals, deal];
+      const updated = [...dealsRef.current, deal];
       await saveDeals(updated);
     },
-    [deals, saveDeals]
+    [saveDeals]
   );
 
   const removeDeal = useCallback(
     async (index: number) => {
-      const updated = deals.filter((_, i) => i !== index);
+      const updated = dealsRef.current.filter((_, i) => i !== index);
       await saveDeals(updated);
     },
-    [deals, saveDeals]
+    [saveDeals]
   );
 
   return {
@@ -208,6 +264,7 @@ export function useWeekPlanner(meals: Meal[]) {
     regenerateSingleDay,
     clearWeek,
     setCategorySelections,
+    setOtherNotes,
     addDeal,
     removeDeal,
   };

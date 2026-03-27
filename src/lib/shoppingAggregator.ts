@@ -1,25 +1,25 @@
-import type { Meal, StoreCategory } from "../types/meals";
+import type { Meal, MasterIngredient, StoreCategory, CategoryItem } from "../types/meals";
 import type { WeekPlan } from "../types/planner";
 import type { ShoppingItem } from "../types/shopping";
-import { ALL_CATEGORY_ITEMS } from "../data/breakfast-lunch-snacks";
 
-/**
- * Aggregate all ingredients from planned dinners + category selections
- * into a deduplicated shopping list.
- */
 export function aggregateShoppingList(
   plan: WeekPlan,
-  meals: Meal[]
+  meals: Meal[],
+  masterIngredients: MasterIngredient[],
+  categoryItems: CategoryItem[]
 ): ShoppingItem[] {
   const itemMap = new Map<string, ShoppingItem>();
+  const masterMap = new Map<string, MasterIngredient>();
+  for (const mi of masterIngredients) {
+    masterMap.set(mi.id, mi);
+  }
 
-  // Helper to merge an ingredient into the map
   function addItem(
     name: string,
     category: StoreCategory,
     quantity: number | undefined,
     unit: string | undefined,
-    price: number | undefined,
+    pricePerUnit: number | undefined,
     fromMeal: string
   ) {
     const key = name.toLowerCase().trim();
@@ -27,21 +27,17 @@ export function aggregateShoppingList(
     if (existing) {
       if (!existing.fromMeals.includes(fromMeal)) {
         existing.fromMeals.push(fromMeal);
+        existing.mealCount++;
       }
-      // Combine quantities if both have the same unit
-      if (
-        quantity !== undefined &&
-        existing.totalQuantity !== undefined &&
-        existing.unit === unit
-      ) {
+      if (quantity !== undefined && existing.totalQuantity !== undefined && existing.unit === unit) {
         existing.totalQuantity += quantity;
       } else if (quantity !== undefined && existing.totalQuantity === undefined) {
         existing.totalQuantity = quantity;
         existing.unit = unit;
       }
-      // Sum prices
-      if (price !== undefined) {
-        existing.estimatedCost = (existing.estimatedCost || 0) + price;
+      // Recompute cost from total quantity and pricePerUnit
+      if (pricePerUnit !== undefined && existing.totalQuantity !== undefined) {
+        existing.estimatedCost = existing.totalQuantity * pricePerUnit;
       }
     } else {
       itemMap.set(key, {
@@ -50,7 +46,11 @@ export function aggregateShoppingList(
         unit,
         category,
         fromMeals: [fromMeal],
-        estimatedCost: price,
+        mealCount: 1,
+        estimatedCost:
+          pricePerUnit !== undefined && quantity !== undefined
+            ? quantity * pricePerUnit
+            : undefined,
         checked: false,
       });
     }
@@ -61,39 +61,66 @@ export function aggregateShoppingList(
     if (!day.assignedMealId) continue;
     const meal = meals.find((m) => m.id === day.assignedMealId);
     if (!meal) continue;
-    for (const ing of meal.ingredients) {
+    for (const entry of meal.ingredients) {
+      const master = masterMap.get(entry.ingredientId);
+      if (!master) continue;
       addItem(
-        ing.name,
-        ing.category,
-        ing.quantity,
-        ing.unit,
-        ing.priceEstimate,
+        master.name,
+        master.category,
+        entry.quantity,
+        master.defaultUnit,
+        master.pricePerUnit,
         meal.name
       );
     }
   }
 
-  // Add breakfast/lunch/snack category items
+  // Add category items (breakfast/lunch/snack/other)
   const allSelections = [
     ...plan.breakfastSelections,
     ...plan.lunchSelections,
     ...plan.snackSelections,
+    ...plan.otherSelections,
   ];
   for (const itemId of allSelections) {
-    const catItem = ALL_CATEGORY_ITEMS.find((ci) => ci.id === itemId);
+    const catItem = categoryItems.find((ci) => ci.id === itemId);
     if (catItem) {
+      const source =
+        catItem.itemType === "breakfast"
+          ? "Breakfast"
+          : catItem.itemType === "lunch"
+            ? "Lunch"
+            : catItem.itemType === "snack"
+              ? "Snacks"
+              : "Other";
       addItem(
         catItem.name,
         catItem.category,
+        catItem.quantity,
+        catItem.unit,
         undefined,
-        undefined,
-        undefined,
-        itemId.startsWith("b-")
-          ? "Breakfast"
-          : itemId.startsWith("l-")
-            ? "Lunch"
-            : "Snacks"
+        source
       );
+    }
+  }
+
+  // Add free-text "other" notes as simple entries
+  if (plan.otherNotes) {
+    const lines = plan.otherNotes
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean);
+    for (const line of lines) {
+      const key = line.toLowerCase();
+      if (!itemMap.has(key)) {
+        itemMap.set(key, {
+          ingredientName: line,
+          category: "other",
+          fromMeals: ["Other"],
+          mealCount: 0,
+          checked: false,
+        });
+      }
     }
   }
 

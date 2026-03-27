@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { DayPlan } from "../../types/planner";
-import type { Meal } from "../../types/meals";
+import type { Meal, TagDefinition } from "../../types/meals";
 import { DAY_NAMES } from "../../types/planner";
 import TagBadge from "../common/TagBadge";
 import TagSelector from "./TagSelector";
@@ -9,6 +9,7 @@ interface DayCardProps {
   day: DayPlan;
   meal: Meal | undefined;
   allMeals: Meal[];
+  availableTags: TagDefinition[];
   onTagsChange: (tags: string[]) => void;
   onToggleLock: () => void;
   onRegenerate: () => void;
@@ -19,6 +20,7 @@ export default function DayCard({
   day,
   meal,
   allMeals,
+  availableTags,
   onTagsChange,
   onToggleLock,
   onRegenerate,
@@ -33,27 +35,23 @@ export default function DayCard({
         day.locked ? "border-blue-300 bg-blue-50/30" : "border-gray-200"
       }`}
     >
-      {/* Day header */}
       <div className="flex items-center justify-between mb-2">
         <h3 className="font-semibold text-sm text-gray-800">
           {DAY_NAMES[day.dayOfWeek]}
         </h3>
-        <div className="flex gap-1">
-          <button
-            onClick={onToggleLock}
-            className={`text-xs px-1.5 py-0.5 rounded ${
-              day.locked
-                ? "bg-blue-100 text-blue-700"
-                : "bg-gray-100 text-gray-500"
-            }`}
-            title={day.locked ? "Unlock" : "Lock"}
-          >
-            {day.locked ? "Locked" : "Lock"}
-          </button>
-        </div>
+        <button
+          onClick={onToggleLock}
+          className={`text-xs px-1.5 py-0.5 rounded ${
+            day.locked
+              ? "bg-blue-100 text-blue-700"
+              : "bg-gray-100 text-gray-500"
+          }`}
+          title={day.locked ? "Unlock" : "Lock"}
+        >
+          {day.locked ? "Locked" : "Lock"}
+        </button>
       </div>
 
-      {/* Tags */}
       <div className="mb-2">
         {day.tags.length > 0 ? (
           <div className="flex flex-wrap gap-1 mb-1">
@@ -61,6 +59,7 @@ export default function DayCard({
               <TagBadge
                 key={tag}
                 tag={tag}
+                allTags={availableTags}
                 onRemove={() =>
                   onTagsChange(day.tags.filter((t) => t !== tag))
                 }
@@ -78,12 +77,15 @@ export default function DayCard({
         </button>
         {showTagPicker && (
           <div className="mt-1">
-            <TagSelector selected={day.tags} onChange={onTagsChange} />
+            <TagSelector
+              selected={day.tags}
+              availableTags={availableTags}
+              onChange={onTagsChange}
+            />
           </div>
         )}
       </div>
 
-      {/* Assigned meal */}
       <div className="border-t border-gray-100 pt-2">
         {meal ? (
           <div>
@@ -126,7 +128,6 @@ export default function DayCard({
           </div>
         )}
 
-        {/* Manual meal picker */}
         {showMealPicker && (
           <div className="mt-2 max-h-40 overflow-y-auto border border-gray-200 rounded bg-white">
             {allMeals.map((m) => (

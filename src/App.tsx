@@ -8,7 +8,9 @@ import {
 } from "./lib/dataDirectory";
 import { setStorageDirectory, readJson } from "./lib/storage";
 import { useMealLibrary } from "./hooks/useMealLibrary";
-import type { Meal } from "./types/meals";
+import { useIngredients } from "./hooks/useIngredients";
+import { useCategoryItems } from "./hooks/useCategoryItems";
+import { useTags } from "./hooks/useTags";
 import type { WeekPlan } from "./types/planner";
 import TabNav from "./components/common/TabNav";
 import MealLibrary from "./components/MealLibrary/MealLibrary";
@@ -106,22 +108,52 @@ function MainApp({
   activeTab: Tab;
   setActiveTab: (tab: Tab) => void;
 }) {
-  const { meals } = useMealLibrary();
+  // Single source of truth for all shared state
+  const mealLib = useMealLibrary();
+  const ingredientLib = useIngredients();
+  const tagLib = useTags();
+  const catItemLib = useCategoryItems();
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
       <TabNav activeTab={activeTab} onTabChange={setActiveTab} />
       <main className="flex-1 overflow-auto p-6">
-        {activeTab === "meals" && <MealLibrary />}
-        {activeTab === "planner" && <PlannerPage meals={meals} />}
-        {activeTab === "shopping" && <ShoppingPage meals={meals} />}
+        {activeTab === "meals" && (
+          <MealLibrary
+            mealLib={mealLib}
+            tagLib={tagLib}
+            ingredientLib={ingredientLib}
+          />
+        )}
+        {activeTab === "planner" && (
+          <PlannerPage
+            meals={mealLib.meals}
+            tags={tagLib.tags}
+            categoryItemLib={catItemLib}
+          />
+        )}
+        {activeTab === "shopping" && (
+          <ShoppingPage
+            meals={mealLib.meals}
+            masterIngredients={ingredientLib.ingredients}
+            categoryItems={catItemLib.items}
+          />
+        )}
         {activeTab === "settings" && <Settings />}
       </main>
     </div>
   );
 }
 
-function ShoppingPage({ meals }: { meals: Meal[] }) {
+function ShoppingPage({
+  meals,
+  masterIngredients,
+  categoryItems,
+}: {
+  meals: import("./types/meals").Meal[];
+  masterIngredients: import("./types/meals").MasterIngredient[];
+  categoryItems: import("./types/meals").CategoryItem[];
+}) {
   const [plan, setPlan] = useState<WeekPlan | null>(null);
 
   useEffect(() => {
@@ -130,7 +162,14 @@ function ShoppingPage({ meals }: { meals: Meal[] }) {
     });
   }, []);
 
-  return <ShoppingList plan={plan} meals={meals} />;
+  return (
+    <ShoppingList
+      plan={plan}
+      meals={meals}
+      masterIngredients={masterIngredients}
+      categoryItems={categoryItems}
+    />
+  );
 }
 
 export default App;

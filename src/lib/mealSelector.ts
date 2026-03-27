@@ -1,4 +1,4 @@
-import type { Meal } from "../types/meals";
+import type { Meal, MasterIngredient } from "../types/meals";
 import type { DayPlan, Deal } from "../types/planner";
 
 interface ScoredMeal {
@@ -8,35 +8,34 @@ interface ScoredMeal {
 
 /**
  * Auto-select meals for unlocked days based on tag matching, deals, and recency.
- * Returns a map of dayOfWeek -> mealId.
  */
 export function selectMealsForWeek(
   allMeals: Meal[],
   days: DayPlan[],
   deals: Deal[],
-  recentlyUsedIds: string[]
+  recentlyUsedIds: string[],
+  masterIngredients?: MasterIngredient[]
 ): Map<number, string> {
   if (allMeals.length === 0) return new Map();
 
-  const assignments = new Map<number, string>();
-
-  // Collect already-locked meal IDs to avoid duplicates
-  const usedThisWeek = new Set<string>();
-  for (const day of days) {
-    if (day.locked && day.assignedMealId) {
-      usedThisWeek.add(day.assignedMealId);
-    }
+  const masterMap = new Map<string, MasterIngredient>();
+  if (masterIngredients) {
+    for (const mi of masterIngredients) masterMap.set(mi.id, mi);
   }
 
-  // Process unlocked days in order (Monday=0 to Sunday=6)
+  const assignments = new Map<number, string>();
+  const usedThisWeek = new Set<string>();
+  for (const day of days) {
+    if (day.locked && day.assignedMealId) usedThisWeek.add(day.assignedMealId);
+  }
+
   const unlockedDays = days
     .filter((d) => !d.locked)
     .sort((a, b) => a.dayOfWeek - b.dayOfWeek);
 
   for (const day of unlockedDays) {
-    const scored = scoreMeals(allMeals, day, deals, recentlyUsedIds, usedThisWeek);
+    const scored = scoreMeals(allMeals, day, deals, recentlyUsedIds, usedThisWeek, masterMap);
     if (scored.length > 0) {
-      // Pick highest score, random tiebreak
       const maxScore = scored[0].score;
       const ties = scored.filter((s) => s.score === maxScore);
       const pick = ties[Math.floor(Math.random() * ties.length)];
@@ -48,32 +47,29 @@ export function selectMealsForWeek(
   return assignments;
 }
 
-/**
- * Regenerate a single day, excluding the currently assigned meal.
- */
 export function regenerateDay(
   allMeals: Meal[],
   day: DayPlan,
   days: DayPlan[],
   deals: Deal[],
-  recentlyUsedIds: string[]
+  recentlyUsedIds: string[],
+  masterIngredients?: MasterIngredient[]
 ): string | null {
   if (allMeals.length === 0) return null;
 
-  const usedThisWeek = new Set<string>();
-  for (const d of days) {
-    if (d.assignedMealId && d.dayOfWeek !== day.dayOfWeek) {
-      usedThisWeek.add(d.assignedMealId);
-    }
-  }
-  // Exclude current meal so user always gets something different
-  if (day.assignedMealId) {
-    usedThisWeek.add(day.assignedMealId);
+  const masterMap = new Map<string, MasterIngredient>();
+  if (masterIngredients) {
+    for (const mi of masterIngredients) masterMap.set(mi.id, mi);
   }
 
-  const scored = scoreMeals(allMeals, day, deals, recentlyUsedIds, usedThisWeek);
+  const usedThisWeek = new Set<string>();
+  for (const d of days) {
+    if (d.assignedMealId && d.dayOfWeek !== day.dayOfWeek) usedThisWeek.add(d.assignedMealId);
+  }
+  if (day.assignedMealId) usedThisWeek.add(day.assignedMealId);
+
+  const scored = scoreMeals(allMeals, day, deals, recentlyUsedIds, usedThisWeek, masterMap);
   if (scored.length === 0) {
-    // Fallback: allow any meal except the current one
     const fallback = allMeals.filter((m) => m.id !== day.assignedMealId);
     if (fallback.length === 0) return null;
     return fallback[Math.floor(Math.random() * fallback.length)].id;
@@ -89,7 +85,8 @@ function scoreMeals(
   day: DayPlan,
   deals: Deal[],
   recentlyUsedIds: string[],
-  usedThisWeek: Set<string>
+  usedThisWeek: Set<string>,
+  masterMap: Map<string, MasterIngredient>
 ): ScoredMeal[] {
   const scored: ScoredMeal[] = [];
 
@@ -100,42 +97,39 @@ function scoreMeals(
     if (day.tags.length > 0) {
       const matching = day.tags.filter((t) => meal.tags.includes(t)).length;
       score += (matching / day.tags.length) * 100;
-      // Skip meals with zero tag overlap if tags are specified
       if (matching === 0) continue;
     } else {
-      score += 100; // No preference = all meals equally valid
+      score += 100;
     }
 
     // Deal bonus (0-30, capped)
     let dealBonus = 0;
     for (const deal of deals) {
       const dealName = deal.ingredientName.toLowerCase();
-      const hasIngredient = meal.ingredients.some(
-        (ing) => ing.name.toLowerCase().includes(dealName) || dealName.includes(ing.name.toLowerCase())
-      );
-      if (hasIngredient) {
-        dealBonus += 10 * deal.biasStrength;
-      }
+      const hasIngredient = meal.ingredients.some((entry) => {
+        const master = masterMap.get(entry.ingredientId);
+        if (!master) return false;
+        const ingName = master.name.toLowerCase();
+        return ingName.includes(dealName) || dealName.includes(ingName);
+      });
+      if (hasIngredient) dealBonus += 10 * deal.biasStrength;
     }
     score += Math.min(dealBonus, 30);
 
     // Recency penalty
     const recentIdx = recentlyUsedIds.indexOf(meal.id);
     if (recentIdx >= 0) {
-      if (recentIdx < 7) score -= 50;       // Used in last week
-      else if (recentIdx < 14) score -= 25;  // Two weeks ago
-      else if (recentIdx < 21) score -= 10;  // Three weeks ago
+      if (recentIdx < 7) score -= 50;
+      else if (recentIdx < 14) score -= 25;
+      else if (recentIdx < 21) score -= 10;
     }
 
-    // Variety penalty: already assigned this week
-    if (usedThisWeek.has(meal.id)) {
-      score -= 40;
-    }
+    // Variety penalty
+    if (usedThisWeek.has(meal.id)) score -= 40;
 
     scored.push({ meal, score });
   }
 
-  // Sort descending by score
   scored.sort((a, b) => b.score - a.score);
   return scored;
 }

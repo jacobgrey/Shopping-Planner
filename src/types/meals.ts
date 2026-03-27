@@ -29,36 +29,34 @@ export const STORE_CATEGORIES: StoreCategory[] = [
   "other",
 ];
 
-export type MealTag =
-  | "low-effort"
-  | "has-leftovers"
-  | "low-cost"
-  | "filling"
-  | "kid-favorite"
-  | "dads-favorite"
-  | "healthy"
-  | "comfort-food"
-  | "quick"
-  | "slow-cooker"
-  | "grill"
-  | "vegetarian";
+// --- Tags (user-manageable) ---
 
-export const MEAL_TAGS: MealTag[] = [
-  "low-effort",
-  "has-leftovers",
-  "low-cost",
-  "filling",
-  "kid-favorite",
-  "dads-favorite",
-  "healthy",
-  "comfort-food",
-  "quick",
-  "slow-cooker",
-  "grill",
-  "vegetarian",
-];
+export interface TagDefinition {
+  id: string;
+  label: string;
+  colorIndex: number;
+}
+
+// --- Master Ingredient List ---
+
+export interface MasterIngredient {
+  id: string;
+  name: string;
+  category: StoreCategory;
+  defaultUnit: string;
+  pricePerUnit?: number;
+}
+
+// --- Meal Ingredients (reference master list) ---
 
 export interface IngredientEntry {
+  ingredientId: string;
+  quantity?: number;
+}
+
+// --- Import format (external AI-processed data) ---
+
+export interface ImportIngredientEntry {
   name: string;
   quantity?: number;
   unit?: string;
@@ -66,11 +64,21 @@ export interface IngredientEntry {
   priceEstimate?: number;
 }
 
-/** The import format for meals from external sources (e.g., AI-processed handwritten sheets) */
 export interface MealImport {
   version: "1.0";
-  meals: MealDefinition[];
+  meals: ImportMealDefinition[];
 }
+
+export interface ImportMealDefinition {
+  name: string;
+  sides?: string[];
+  ingredients: ImportIngredientEntry[];
+  tags: string[];
+  prepTimeMinutes?: number;
+  notes?: string;
+}
+
+// --- Internal meal ---
 
 export interface MealDefinition {
   name: string;
@@ -81,9 +89,19 @@ export interface MealDefinition {
   notes?: string;
 }
 
-/** Internal meal with ID and metadata */
 export interface Meal extends MealDefinition {
   id: string;
   createdAt: string;
   lastUsed?: string;
+}
+
+// --- Category Items (breakfast/lunch/snack/other) ---
+
+export interface CategoryItem {
+  id: string;
+  name: string;
+  category: StoreCategory;
+  itemType: "breakfast" | "lunch" | "snack" | "other";
+  quantity?: number;
+  unit?: string;
 }
