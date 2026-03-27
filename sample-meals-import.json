@@ -1,0 +1,287 @@
+{
+  "version": "1.0",
+  "meals": [
+    {
+      "name": "Chicken Stir Fry",
+      "sides": ["White Rice"],
+      "ingredients": [
+        { "name": "chicken breast", "quantity": 1.5, "unit": "lbs", "category": "meat", "priceEstimate": 5.49 },
+        { "name": "bell pepper", "quantity": 2, "unit": "each", "category": "produce", "priceEstimate": 1.50 },
+        { "name": "broccoli florets", "quantity": 1, "unit": "bag", "category": "frozen", "priceEstimate": 2.29 },
+        { "name": "soy sauce", "quantity": 3, "unit": "tbsp", "category": "condiments" },
+        { "name": "white rice", "quantity": 1.5, "unit": "cups", "category": "dry-goods", "priceEstimate": 0.75 }
+      ],
+      "tags": ["quick", "kid-favorite", "healthy"],
+      "prepTimeMinutes": 25
+    },
+    {
+      "name": "Spaghetti and Meat Sauce",
+      "sides": ["Garlic Bread"],
+      "ingredients": [
+        { "name": "ground beef", "quantity": 1, "unit": "lb", "category": "meat", "priceEstimate": 5.99 },
+        { "name": "spaghetti noodles", "quantity": 1, "unit": "lb", "category": "dry-goods", "priceEstimate": 1.29 },
+        { "name": "marinara sauce", "quantity": 1, "unit": "jar", "category": "canned-goods", "priceEstimate": 2.99 },
+        { "name": "garlic bread", "quantity": 1, "unit": "loaf", "category": "frozen", "priceEstimate": 2.49 },
+        { "name": "parmesan cheese", "quantity": 0.25, "unit": "cup", "category": "dairy", "priceEstimate": 1.00 }
+      ],
+      "tags": ["kid-favorite", "filling", "has-leftovers", "low-effort", "comfort-food"],
+      "prepTimeMinutes": 30
+    },
+    {
+      "name": "Slow Cooker Pulled Pork",
+      "sides": ["Coleslaw", "Buns"],
+      "ingredients": [
+        { "name": "pork shoulder", "quantity": 3, "unit": "lbs", "category": "meat", "priceEstimate": 9.99 },
+        { "name": "BBQ sauce", "quantity": 1, "unit": "bottle", "category": "condiments", "priceEstimate": 2.99 },
+        { "name": "hamburger buns", "quantity": 8, "unit": "each", "category": "bakery", "priceEstimate": 2.49 },
+        { "name": "coleslaw mix", "quantity": 1, "unit": "bag", "category": "produce", "priceEstimate": 2.99 }
+      ],
+      "tags": ["low-effort", "has-leftovers", "filling", "dads-favorite", "slow-cooker"],
+      "prepTimeMinutes": 15,
+      "notes": "8 hours on low, 4 on high"
+    },
+    {
+      "name": "Tacos",
+      "sides": ["Chips and Salsa"],
+      "ingredients": [
+        { "name": "ground beef", "quantity": 1, "unit": "lb", "category": "meat", "priceEstimate": 5.99 },
+        { "name": "taco seasoning", "quantity": 1, "unit": "packet", "category": "spices", "priceEstimate": 0.99 },
+        { "name": "taco shells", "quantity": 1, "unit": "box", "category": "dry-goods", "priceEstimate": 2.29 },
+        { "name": "shredded cheese", "quantity": 1, "unit": "bag", "category": "dairy", "priceEstimate": 2.99 },
+        { "name": "lettuce", "quantity": 1, "unit": "head", "category": "produce", "priceEstimate": 1.49 },
+        { "name": "sour cream", "quantity": 1, "unit": "container", "category": "dairy", "priceEstimate": 1.99 },
+        { "name": "tortilla chips", "quantity": 1, "unit": "bag", "category": "snacks", "priceEstimate": 3.49 },
+        { "name": "salsa", "quantity": 1, "unit": "jar", "category": "condiments", "priceEstimate": 2.99 }
+      ],
+      "tags": ["kid-favorite", "quick", "low-cost", "filling"],
+      "prepTimeMinutes": 20
+    },
+    {
+      "name": "Sheet Pan Sausage and Veggies",
+      "sides": [],
+      "ingredients": [
+        { "name": "smoked sausage", "quantity": 1, "unit": "pkg", "category": "meat", "priceEstimate": 3.99 },
+        { "name": "potatoes", "quantity": 4, "unit": "each", "category": "produce", "priceEstimate": 2.00 },
+        { "name": "bell pepper", "quantity": 2, "unit": "each", "category": "produce", "priceEstimate": 1.50 },
+        { "name": "zucchini", "quantity": 2, "unit": "each", "category": "produce", "priceEstimate": 1.50 },
+        { "name": "olive oil", "quantity": 2, "unit": "tbsp", "category": "condiments" }
+      ],
+      "tags": ["low-effort", "healthy", "low-cost"],
+      "prepTimeMinutes": 35
+    },
+    {
+      "name": "Chicken Alfredo",
+      "sides": [],
+      "ingredients": [
+        { "name": "chicken breast", "quantity": 1.5, "unit": "lbs", "category": "meat", "priceEstimate": 5.49 },
+        { "name": "fettuccine", "quantity": 1, "unit": "lb", "category": "dry-goods", "priceEstimate": 1.49 },
+        { "name": "alfredo sauce", "quantity": 1, "unit": "jar", "category": "canned-goods", "priceEstimate": 2.99 },
+        { "name": "parmesan cheese", "quantity": 0.25, "unit": "cup", "category": "dairy", "priceEstimate": 1.00 }
+      ],
+      "tags": ["comfort-food", "filling", "kid-favorite", "has-leftovers"],
+      "prepTimeMinutes": 25
+    },
+    {
+      "name": "Grilled Burgers",
+      "sides": ["Fries", "Baked Beans"],
+      "ingredients": [
+        { "name": "ground beef", "quantity": 2, "unit": "lbs", "category": "meat", "priceEstimate": 11.98 },
+        { "name": "hamburger buns", "quantity": 8, "unit": "each", "category": "bakery", "priceEstimate": 2.49 },
+        { "name": "american cheese slices", "quantity": 8, "unit": "each", "category": "dairy", "priceEstimate": 2.99 },
+        { "name": "frozen french fries", "quantity": 1, "unit": "bag", "category": "frozen", "priceEstimate": 3.49 },
+        { "name": "baked beans", "quantity": 1, "unit": "can", "category": "canned-goods", "priceEstimate": 1.49 }
+      ],
+      "tags": ["dads-favorite", "filling", "grill", "kid-favorite"],
+      "prepTimeMinutes": 30
+    },
+    {
+      "name": "Chicken Quesadillas",
+      "sides": ["Rice and Beans"],
+      "ingredients": [
+        { "name": "chicken breast", "quantity": 1, "unit": "lb", "category": "meat", "priceEstimate": 3.99 },
+        { "name": "flour tortillas", "quantity": 1, "unit": "pkg", "category": "bakery", "priceEstimate": 2.99 },
+        { "name": "shredded cheese", "quantity": 1, "unit": "bag", "category": "dairy", "priceEstimate": 2.99 },
+        { "name": "salsa", "quantity": 1, "unit": "jar", "category": "condiments", "priceEstimate": 2.99 },
+        { "name": "sour cream", "quantity": 1, "unit": "container", "category": "dairy", "priceEstimate": 1.99 }
+      ],
+      "tags": ["quick", "kid-favorite", "low-effort"],
+      "prepTimeMinutes": 20
+    },
+    {
+      "name": "Baked Chicken Thighs",
+      "sides": ["Mashed Potatoes", "Green Beans"],
+      "ingredients": [
+        { "name": "chicken thighs", "quantity": 2, "unit": "lbs", "category": "meat", "priceEstimate": 5.49 },
+        { "name": "potatoes", "quantity": 5, "unit": "each", "category": "produce", "priceEstimate": 2.50 },
+        { "name": "butter", "quantity": 0.25, "unit": "cup", "category": "dairy", "priceEstimate": 0.75 },
+        { "name": "milk", "quantity": 0.5, "unit": "cup", "category": "dairy", "priceEstimate": 0.30 },
+        { "name": "green beans", "quantity": 1, "unit": "can", "category": "canned-goods", "priceEstimate": 1.09 },
+        { "name": "olive oil", "quantity": 2, "unit": "tbsp", "category": "condiments" },
+        { "name": "garlic powder", "quantity": 1, "unit": "tsp", "category": "spices" }
+      ],
+      "tags": ["comfort-food", "filling", "dads-favorite", "has-leftovers"],
+      "prepTimeMinutes": 45
+    },
+    {
+      "name": "Beef Chili",
+      "sides": ["Cornbread"],
+      "ingredients": [
+        { "name": "ground beef", "quantity": 1.5, "unit": "lbs", "category": "meat", "priceEstimate": 8.99 },
+        { "name": "kidney beans", "quantity": 2, "unit": "cans", "category": "canned-goods", "priceEstimate": 2.18 },
+        { "name": "diced tomatoes", "quantity": 2, "unit": "cans", "category": "canned-goods", "priceEstimate": 2.18 },
+        { "name": "onion", "quantity": 1, "unit": "each", "category": "produce", "priceEstimate": 0.75 },
+        { "name": "chili powder", "quantity": 3, "unit": "tbsp", "category": "spices" },
+        { "name": "cornbread mix", "quantity": 1, "unit": "box", "category": "dry-goods", "priceEstimate": 1.49 },
+        { "name": "shredded cheese", "quantity": 0.5, "unit": "bag", "category": "dairy", "priceEstimate": 1.50 }
+      ],
+      "tags": ["has-leftovers", "filling", "comfort-food", "low-cost"],
+      "prepTimeMinutes": 40
+    },
+    {
+      "name": "Teriyaki Salmon",
+      "sides": ["Steamed Rice", "Edamame"],
+      "ingredients": [
+        { "name": "salmon fillets", "quantity": 1.5, "unit": "lbs", "category": "meat", "priceEstimate": 10.99 },
+        { "name": "teriyaki sauce", "quantity": 0.5, "unit": "cup", "category": "condiments", "priceEstimate": 1.50 },
+        { "name": "white rice", "quantity": 1.5, "unit": "cups", "category": "dry-goods", "priceEstimate": 0.75 },
+        { "name": "frozen edamame", "quantity": 1, "unit": "bag", "category": "frozen", "priceEstimate": 2.49 },
+        { "name": "sesame seeds", "quantity": 1, "unit": "tbsp", "category": "spices" }
+      ],
+      "tags": ["healthy", "quick", "dads-favorite"],
+      "prepTimeMinutes": 20
+    },
+    {
+      "name": "Chicken Fried Rice",
+      "sides": [],
+      "ingredients": [
+        { "name": "chicken breast", "quantity": 1, "unit": "lb", "category": "meat", "priceEstimate": 3.99 },
+        { "name": "white rice", "quantity": 2, "unit": "cups", "category": "dry-goods", "priceEstimate": 1.00 },
+        { "name": "frozen peas and carrots", "quantity": 1, "unit": "bag", "category": "frozen", "priceEstimate": 1.49 },
+        { "name": "eggs", "quantity": 3, "unit": "each", "category": "dairy", "priceEstimate": 0.75 },
+        { "name": "soy sauce", "quantity": 3, "unit": "tbsp", "category": "condiments" },
+        { "name": "sesame oil", "quantity": 1, "unit": "tbsp", "category": "condiments" }
+      ],
+      "tags": ["quick", "low-cost", "kid-favorite", "has-leftovers"],
+      "prepTimeMinutes": 25
+    },
+    {
+      "name": "Baked Ziti",
+      "sides": ["Caesar Salad"],
+      "ingredients": [
+        { "name": "ziti pasta", "quantity": 1, "unit": "lb", "category": "dry-goods", "priceEstimate": 1.29 },
+        { "name": "ground italian sausage", "quantity": 1, "unit": "lb", "category": "meat", "priceEstimate": 4.99 },
+        { "name": "marinara sauce", "quantity": 1, "unit": "jar", "category": "canned-goods", "priceEstimate": 2.99 },
+        { "name": "ricotta cheese", "quantity": 15, "unit": "oz", "category": "dairy", "priceEstimate": 3.49 },
+        { "name": "mozzarella cheese", "quantity": 2, "unit": "cups", "category": "dairy", "priceEstimate": 2.99 },
+        { "name": "romaine lettuce", "quantity": 1, "unit": "head", "category": "produce", "priceEstimate": 1.99 },
+        { "name": "caesar dressing", "quantity": 1, "unit": "bottle", "category": "condiments", "priceEstimate": 2.99 },
+        { "name": "croutons", "quantity": 1, "unit": "bag", "category": "dry-goods", "priceEstimate": 1.99 }
+      ],
+      "tags": ["comfort-food", "has-leftovers", "filling", "kid-favorite"],
+      "prepTimeMinutes": 45
+    },
+    {
+      "name": "Slow Cooker Beef Stew",
+      "sides": ["Crusty Bread"],
+      "ingredients": [
+        { "name": "beef stew meat", "quantity": 2, "unit": "lbs", "category": "meat", "priceEstimate": 9.99 },
+        { "name": "potatoes", "quantity": 4, "unit": "each", "category": "produce", "priceEstimate": 2.00 },
+        { "name": "carrots", "quantity": 4, "unit": "each", "category": "produce", "priceEstimate": 1.00 },
+        { "name": "onion", "quantity": 1, "unit": "each", "category": "produce", "priceEstimate": 0.75 },
+        { "name": "beef broth", "quantity": 4, "unit": "cups", "category": "canned-goods", "priceEstimate": 2.49 },
+        { "name": "tomato paste", "quantity": 2, "unit": "tbsp", "category": "canned-goods", "priceEstimate": 0.99 },
+        { "name": "crusty bread", "quantity": 1, "unit": "loaf", "category": "bakery", "priceEstimate": 2.99 }
+      ],
+      "tags": ["slow-cooker", "low-effort", "has-leftovers", "filling", "comfort-food"],
+      "prepTimeMinutes": 20,
+      "notes": "8 hours on low, throw everything in and forget it"
+    },
+    {
+      "name": "BBQ Chicken Pizza",
+      "sides": [],
+      "ingredients": [
+        { "name": "pizza dough", "quantity": 1, "unit": "lb", "category": "bakery", "priceEstimate": 2.99 },
+        { "name": "rotisserie chicken", "quantity": 1, "unit": "each", "category": "deli", "priceEstimate": 5.99 },
+        { "name": "BBQ sauce", "quantity": 0.5, "unit": "cup", "category": "condiments", "priceEstimate": 1.50 },
+        { "name": "mozzarella cheese", "quantity": 2, "unit": "cups", "category": "dairy", "priceEstimate": 2.99 },
+        { "name": "red onion", "quantity": 0.5, "unit": "each", "category": "produce", "priceEstimate": 0.50 }
+      ],
+      "tags": ["kid-favorite", "quick", "comfort-food"],
+      "prepTimeMinutes": 25
+    },
+    {
+      "name": "Chicken Fajitas",
+      "sides": ["Spanish Rice"],
+      "ingredients": [
+        { "name": "chicken breast", "quantity": 1.5, "unit": "lbs", "category": "meat", "priceEstimate": 5.49 },
+        { "name": "bell pepper", "quantity": 3, "unit": "each", "category": "produce", "priceEstimate": 2.25 },
+        { "name": "onion", "quantity": 1, "unit": "each", "category": "produce", "priceEstimate": 0.75 },
+        { "name": "fajita seasoning", "quantity": 1, "unit": "packet", "category": "spices", "priceEstimate": 0.99 },
+        { "name": "flour tortillas", "quantity": 1, "unit": "pkg", "category": "bakery", "priceEstimate": 2.99 },
+        { "name": "sour cream", "quantity": 1, "unit": "container", "category": "dairy", "priceEstimate": 1.99 },
+        { "name": "shredded cheese", "quantity": 1, "unit": "bag", "category": "dairy", "priceEstimate": 2.99 }
+      ],
+      "tags": ["quick", "healthy", "filling", "kid-favorite"],
+      "prepTimeMinutes": 25
+    },
+    {
+      "name": "Meatloaf",
+      "sides": ["Mashed Potatoes", "Corn"],
+      "ingredients": [
+        { "name": "ground beef", "quantity": 2, "unit": "lbs", "category": "meat", "priceEstimate": 11.98 },
+        { "name": "breadcrumbs", "quantity": 0.5, "unit": "cup", "category": "dry-goods", "priceEstimate": 0.50 },
+        { "name": "eggs", "quantity": 2, "unit": "each", "category": "dairy", "priceEstimate": 0.50 },
+        { "name": "ketchup", "quantity": 0.5, "unit": "cup", "category": "condiments", "priceEstimate": 0.50 },
+        { "name": "onion", "quantity": 0.5, "unit": "each", "category": "produce", "priceEstimate": 0.38 },
+        { "name": "potatoes", "quantity": 5, "unit": "each", "category": "produce", "priceEstimate": 2.50 },
+        { "name": "butter", "quantity": 0.25, "unit": "cup", "category": "dairy", "priceEstimate": 0.75 },
+        { "name": "frozen corn", "quantity": 1, "unit": "bag", "category": "frozen", "priceEstimate": 1.49 }
+      ],
+      "tags": ["comfort-food", "filling", "dads-favorite", "has-leftovers"],
+      "prepTimeMinutes": 60
+    },
+    {
+      "name": "Honey Garlic Pork Chops",
+      "sides": ["Rice Pilaf", "Steamed Broccoli"],
+      "ingredients": [
+        { "name": "pork chops", "quantity": 4, "unit": "each", "category": "meat", "priceEstimate": 7.99 },
+        { "name": "honey", "quantity": 3, "unit": "tbsp", "category": "condiments", "priceEstimate": 0.75 },
+        { "name": "garlic", "quantity": 4, "unit": "cloves", "category": "produce", "priceEstimate": 0.25 },
+        { "name": "soy sauce", "quantity": 2, "unit": "tbsp", "category": "condiments" },
+        { "name": "rice pilaf mix", "quantity": 1, "unit": "box", "category": "dry-goods", "priceEstimate": 1.99 },
+        { "name": "broccoli", "quantity": 1, "unit": "bunch", "category": "produce", "priceEstimate": 1.99 }
+      ],
+      "tags": ["quick", "filling", "healthy"],
+      "prepTimeMinutes": 25
+    },
+    {
+      "name": "Enchiladas",
+      "sides": ["Refried Beans"],
+      "ingredients": [
+        { "name": "chicken breast", "quantity": 1.5, "unit": "lbs", "category": "meat", "priceEstimate": 5.49 },
+        { "name": "flour tortillas", "quantity": 1, "unit": "pkg", "category": "bakery", "priceEstimate": 2.99 },
+        { "name": "enchilada sauce", "quantity": 2, "unit": "cans", "category": "canned-goods", "priceEstimate": 3.98 },
+        { "name": "shredded cheese", "quantity": 2, "unit": "cups", "category": "dairy", "priceEstimate": 2.99 },
+        { "name": "sour cream", "quantity": 1, "unit": "container", "category": "dairy", "priceEstimate": 1.99 },
+        { "name": "refried beans", "quantity": 1, "unit": "can", "category": "canned-goods", "priceEstimate": 1.29 }
+      ],
+      "tags": ["has-leftovers", "kid-favorite", "comfort-food", "filling"],
+      "prepTimeMinutes": 40
+    },
+    {
+      "name": "Grilled Chicken Salad",
+      "sides": [],
+      "ingredients": [
+        { "name": "chicken breast", "quantity": 1, "unit": "lb", "category": "meat", "priceEstimate": 3.99 },
+        { "name": "mixed salad greens", "quantity": 1, "unit": "bag", "category": "produce", "priceEstimate": 3.49 },
+        { "name": "cherry tomatoes", "quantity": 1, "unit": "pint", "category": "produce", "priceEstimate": 2.99 },
+        { "name": "cucumber", "quantity": 1, "unit": "each", "category": "produce", "priceEstimate": 0.79 },
+        { "name": "croutons", "quantity": 1, "unit": "bag", "category": "dry-goods", "priceEstimate": 1.99 },
+        { "name": "ranch dressing", "quantity": 1, "unit": "bottle", "category": "condiments", "priceEstimate": 2.99 }
+      ],
+      "tags": ["healthy", "quick", "low-cost", "vegetarian"],
+      "prepTimeMinutes": 20,
+      "notes": "Vegetarian without the chicken obviously"
+    }
+  ]
+}
