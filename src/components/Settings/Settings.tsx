@@ -5,8 +5,7 @@ import { getStorageDirectory, setStorageDirectory } from "../../lib/storage";
 import { exportAllData, importAllData, validateBulkData } from "../../lib/bulkExportImport";
 import { save, open } from "@tauri-apps/plugin-dialog";
 import { writeTextFile, readTextFile } from "@tauri-apps/plugin-fs";
-import { useIngredients } from "../../hooks/useIngredients";
-import type { Meal, MealDefinition, StoreCategory, TagDefinition } from "../../types/meals";
+import type { Meal, MealDefinition, MasterIngredient, StoreCategory, TagDefinition } from "../../types/meals";
 import { STORE_CATEGORIES } from "../../types/meals";
 import { TAG_COLOR_PALETTE } from "../../data/tag-colors";
 import { DAY_NAMES } from "../../types/planner";
@@ -28,6 +27,12 @@ interface SettingsProps {
     meals: Meal[];
     updateMeal: (id: string, def: Partial<MealDefinition>) => Promise<void>;
   };
+  ingredientLib: {
+    ingredients: MasterIngredient[];
+    addIngredient: (def: Omit<MasterIngredient, "id">) => Promise<MasterIngredient>;
+    updateIngredient: (id: string, updates: Partial<Omit<MasterIngredient, "id">>) => Promise<void>;
+    deleteIngredient: (id: string) => Promise<void>;
+  };
 }
 
 function slugify(label: string): string {
@@ -38,7 +43,7 @@ function slugify(label: string): string {
     .replace(/^-|-$/g, "");
 }
 
-export default function Settings({ firstDayOfWeek, setFirstDayOfWeek, tagLib, mealLib }: SettingsProps) {
+export default function Settings({ firstDayOfWeek, setFirstDayOfWeek, tagLib, mealLib, ingredientLib }: SettingsProps) {
   const [currentDir] = useState(getStorageDirectory() || "");
   const [exportDir, setExportDir] = useState<string>("");
   const [status, setStatus] = useState<string | null>(null);
@@ -50,10 +55,22 @@ export default function Settings({ firstDayOfWeek, setFirstDayOfWeek, tagLib, me
   }, []);
   const { tags, addTag, removeTag, renameTag } = tagLib;
   const { meals, updateMeal } = mealLib;
-  const { ingredients, addIngredient, updateIngredient, deleteIngredient } = useIngredients();
+  const { ingredients, addIngredient, updateIngredient, deleteIngredient } = ingredientLib;
   const [newTagLabel, setNewTagLabel] = useState("");
   const [showIngredients, setShowIngredients] = useState(false);
   const [tagToRemove, setTagToRemove] = useState<TagDefinition | null>(null);
+
+  async function handleDeleteIngredient(id: string) {
+    // Remove references from meals that use this ingredient
+    for (const meal of meals) {
+      if (meal.ingredients.some((i) => i.ingredientId === id)) {
+        await updateMeal(meal.id, {
+          ingredients: meal.ingredients.filter((i) => i.ingredientId !== id),
+        });
+      }
+    }
+    await deleteIngredient(id);
+  }
 
   async function handleChangeDirectory() {
     const chosen = await promptForDataDirectory();
@@ -355,7 +372,7 @@ export default function Settings({ firstDayOfWeek, setFirstDayOfWeek, tagLib, me
                       </td>
                       <td className="px-3 py-1.5 text-center">
                         <button
-                          onClick={() => deleteIngredient(ing.id)}
+                          onClick={() => handleDeleteIngredient(ing.id)}
                           className="text-red-400 hover:text-red-600"
                         >
                           &times;

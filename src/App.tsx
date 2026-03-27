@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, Component } from "react";
+import type { ReactNode } from "react";
 import {
   getDataDirectory,
   setDataDirectory,
@@ -20,6 +21,42 @@ import ShoppingList from "./components/ShoppingList/ShoppingList";
 import Settings from "./components/Settings/Settings";
 
 type Tab = "meals" | "planner" | "shopping" | "settings";
+
+// Fix #8: Error boundary to prevent white-screen crashes
+class ErrorBoundary extends Component<
+  { children: ReactNode },
+  { error: Error | null }
+> {
+  state: { error: Error | null } = { error: null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="flex items-center justify-center h-screen bg-gray-50">
+          <div className="bg-white rounded-xl shadow-lg p-8 max-w-lg w-full mx-4">
+            <h1 className="text-xl font-bold text-red-700 mb-2">
+              Something went wrong
+            </h1>
+            <p className="text-sm text-gray-600 mb-4">
+              {this.state.error.message}
+            </p>
+            <button
+              onClick={() => this.setState({ error: null })}
+              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 function App() {
   const [loading, setLoading] = useState(true);
@@ -99,7 +136,11 @@ function App() {
 
   if (!ready) return null;
 
-  return <MainApp activeTab={activeTab} setActiveTab={setActiveTab} />;
+  return (
+    <ErrorBoundary>
+      <MainApp activeTab={activeTab} setActiveTab={setActiveTab} />
+    </ErrorBoundary>
+  );
 }
 
 function MainApp({
@@ -115,6 +156,16 @@ function MainApp({
   const tagLib = useTags();
   const catItemLib = useCategoryItems();
   const settingsLib = useSettings();
+
+  // Fix #10: Read plan from disk when switching to shopping tab
+  const [shoppingPlan, setShoppingPlan] = useState<WeekPlan | null>(null);
+  useEffect(() => {
+    if (activeTab === "shopping") {
+      readJson<WeekPlan>("current-week.json").then((data) => {
+        setShoppingPlan(data);
+      });
+    }
+  }, [activeTab]);
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
@@ -137,7 +188,8 @@ function MainApp({
           />
         )}
         {activeTab === "shopping" && (
-          <ShoppingPage
+          <ShoppingList
+            plan={shoppingPlan}
             meals={mealLib.meals}
             masterIngredients={ingredientLib.ingredients}
             categoryItems={catItemLib.items}
@@ -149,37 +201,11 @@ function MainApp({
             setFirstDayOfWeek={settingsLib.setFirstDayOfWeek}
             tagLib={tagLib}
             mealLib={mealLib}
+            ingredientLib={ingredientLib}
           />
         )}
       </main>
     </div>
-  );
-}
-
-function ShoppingPage({
-  meals,
-  masterIngredients,
-  categoryItems,
-}: {
-  meals: import("./types/meals").Meal[];
-  masterIngredients: import("./types/meals").MasterIngredient[];
-  categoryItems: import("./types/meals").CategoryItem[];
-}) {
-  const [plan, setPlan] = useState<WeekPlan | null>(null);
-
-  useEffect(() => {
-    readJson<WeekPlan>("current-week.json").then((data) => {
-      if (data) setPlan(data);
-    });
-  }, []);
-
-  return (
-    <ShoppingList
-      plan={plan}
-      meals={meals}
-      masterIngredients={masterIngredients}
-      categoryItems={categoryItems}
-    />
   );
 }
 

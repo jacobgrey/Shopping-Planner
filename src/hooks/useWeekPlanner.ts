@@ -21,7 +21,10 @@ function getWeekStart(firstDayOfWeek: number = 0): string {
   if (diff > 0) diff -= 7; // go back to most recent occurrence
   const start = new Date(now);
   start.setDate(now.getDate() + diff);
-  return start.toISOString().split("T")[0];
+  const y = start.getFullYear();
+  const m = String(start.getMonth() + 1).padStart(2, "0");
+  const d = String(start.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 function createEmptyWeek(weekOf: string): WeekPlan {

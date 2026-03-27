@@ -36,9 +36,7 @@ export async function getDataDirectory(): Promise<string | null> {
 
 /** Save the chosen data directory path to config */
 export async function setDataDirectory(dir: string): Promise<void> {
-  const configPath = await getConfigPath();
-  const config: AppConfig = { dataDirectory: dir };
-  await writeTextFile(configPath, JSON.stringify(config, null, 2));
+  await updateAppConfig({ dataDirectory: dir });
 }
 
 /** Prompt the user to pick a data directory. Returns the chosen path or null if cancelled. */

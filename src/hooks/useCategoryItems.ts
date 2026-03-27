@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import type { CategoryItem } from "../types/meals";
 import { readJson, writeJson } from "../lib/storage";
 import {
@@ -12,6 +12,11 @@ const CATEGORY_ITEMS_FILE = "category-items.json";
 export function useCategoryItems() {
   const [items, setItems] = useState<CategoryItem[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const itemsRef = useRef<CategoryItem[]>([]);
+
+  useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
 
   useEffect(() => {
     loadItems();
@@ -21,6 +26,7 @@ export function useCategoryItems() {
     const data = await readJson<CategoryItem[]>(CATEGORY_ITEMS_FILE);
     if (data) {
       setItems(data);
+      itemsRef.current = data;
     } else {
       const defaults: CategoryItem[] = [
         ...DEFAULT_BREAKFAST_ITEMS,
@@ -28,12 +34,14 @@ export function useCategoryItems() {
         ...DEFAULT_SNACK_ITEMS,
       ];
       setItems(defaults);
+      itemsRef.current = defaults;
       await writeJson(CATEGORY_ITEMS_FILE, defaults);
     }
     setLoaded(true);
   }
 
   const saveItems = useCallback(async (updated: CategoryItem[]) => {
+    itemsRef.current = updated;
     setItems(updated);
     await writeJson(CATEGORY_ITEMS_FILE, updated);
   }, []);
@@ -41,26 +49,26 @@ export function useCategoryItems() {
   const addItem = useCallback(
     async (def: Omit<CategoryItem, "id">): Promise<CategoryItem> => {
       const item: CategoryItem = { ...def, id: crypto.randomUUID() };
-      await saveItems([...items, item]);
+      await saveItems([...itemsRef.current, item]);
       return item;
     },
-    [items, saveItems]
+    [saveItems]
   );
 
   const updateItem = useCallback(
     async (id: string, updates: Partial<Omit<CategoryItem, "id">>) => {
       await saveItems(
-        items.map((i) => (i.id === id ? { ...i, ...updates } : i))
+        itemsRef.current.map((i) => (i.id === id ? { ...i, ...updates } : i))
       );
     },
-    [items, saveItems]
+    [saveItems]
   );
 
   const deleteItem = useCallback(
     async (id: string) => {
-      await saveItems(items.filter((i) => i.id !== id));
+      await saveItems(itemsRef.current.filter((i) => i.id !== id));
     },
-    [items, saveItems]
+    [saveItems]
   );
 
   const breakfastItems = useMemo(
