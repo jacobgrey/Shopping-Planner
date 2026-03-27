@@ -221,6 +221,35 @@ export function useWeekPlanner(meals: Meal[], firstDayOfWeek: number = 0) {
     await savePlan(updated);
   }, [savePlan]);
 
+  const resetAll = useCallback(async () => {
+    const p = planRef.current;
+    if (!p) return;
+    const currentIds = p.days
+      .map((d) => d.assignedMealId)
+      .filter((id): id is string => !!id);
+    const updatedHistory = [...currentIds, ...recentlyUsedRef.current].slice(0, 42);
+    setRecentlyUsed(updatedHistory);
+    recentlyUsedRef.current = updatedHistory;
+    await writeJson(HISTORY_FILE, updatedHistory);
+
+    const updated = {
+      ...p,
+      days: p.days.map((d) => ({
+        ...d,
+        assignedMealId: undefined,
+        locked: false,
+        tags: [],
+      })),
+      breakfastSelections: [],
+      lunchSelections: [],
+      snackSelections: [],
+      otherSelections: [],
+      otherNotes: "",
+    };
+    await savePlan(updated);
+    await saveDeals([]);
+  }, [savePlan, saveDeals]);
+
   const setCategorySelections = useCallback(
     async (
       category: "breakfastSelections" | "lunchSelections" | "snackSelections" | "otherSelections",
@@ -270,6 +299,7 @@ export function useWeekPlanner(meals: Meal[], firstDayOfWeek: number = 0) {
     autoFillWeek,
     regenerateSingleDay,
     clearWeek,
+    resetAll,
     setCategorySelections,
     setOtherNotes,
     addDeal,

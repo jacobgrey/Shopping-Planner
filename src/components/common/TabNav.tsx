@@ -6,9 +6,9 @@ interface TabNavProps {
 }
 
 const TABS: { id: Tab; label: string }[] = [
-  { id: "meals", label: "Meals" },
   { id: "planner", label: "Planner" },
   { id: "shopping", label: "Shopping List" },
+  { id: "meals", label: "Meals" },
   { id: "settings", label: "Settings" },
 ];
 

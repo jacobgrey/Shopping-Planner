@@ -11,7 +11,7 @@ export function useShoppingList(
   masterIngredients: MasterIngredient[],
   categoryItems: CategoryItem[]
 ) {
-  const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
+  const [uncheckedItems, setUncheckedItems] = useState<Set<string>>(new Set());
   const [sortMode, setSortMode] = useState<ShoppingListSort>("by-category");
 
   const items = useMemo<ShoppingItem[]>(() => {
@@ -19,9 +19,9 @@ export function useShoppingList(
     const list = aggregateShoppingList(plan, meals, masterIngredients, categoryItems);
     return list.map((item) => ({
       ...item,
-      checked: checkedItems.has(item.ingredientName.toLowerCase()),
+      checked: !uncheckedItems.has(item.ingredientName.toLowerCase()),
     }));
-  }, [plan, meals, masterIngredients, categoryItems, checkedItems]);
+  }, [plan, meals, masterIngredients, categoryItems, uncheckedItems]);
 
   const sortedItems = useMemo(() => {
     const sorted = [...items];
@@ -45,7 +45,7 @@ export function useShoppingList(
 
   const toggleItem = useCallback((ingredientName: string) => {
     const key = ingredientName.toLowerCase();
-    setCheckedItems((prev) => {
+    setUncheckedItems((prev) => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
       else next.add(key);
@@ -53,7 +53,7 @@ export function useShoppingList(
     });
   }, []);
 
-  const uncheckAll = useCallback(() => setCheckedItems(new Set()), []);
+  const checkAll = useCallback(() => setUncheckedItems(new Set()), []);
 
   const totalEstimatedCost = useMemo(() => {
     let total = 0;
@@ -67,5 +67,5 @@ export function useShoppingList(
     return hasAny ? total : null;
   }, [items]);
 
-  return { items: sortedItems, sortMode, setSortMode, toggleItem, uncheckAll, totalEstimatedCost };
+  return { items: sortedItems, sortMode, setSortMode, toggleItem, checkAll, totalEstimatedCost };
 }

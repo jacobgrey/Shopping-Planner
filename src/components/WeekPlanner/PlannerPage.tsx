@@ -26,8 +26,21 @@ export default function PlannerPage({ meals, tags, masterIngredients, firstDayOf
     return <p className="text-gray-500">Loading planner...</p>;
   }
 
+  function handleResetAll() {
+    if (!confirm("Reset everything? This will clear all meal assignments, day tags, deals, and category selections for this week.")) return;
+    planner.resetAll();
+  }
+
   return (
     <div className="space-y-8">
+      <div className="flex justify-end">
+        <button
+          onClick={handleResetAll}
+          className="px-4 py-2 text-sm font-medium text-red-600 bg-white border border-red-300 rounded-lg hover:bg-red-50"
+        >
+          Reset All
+        </button>
+      </div>
       <WeekPlanner
         weekOf={planner.plan.weekOf}
         days={planner.plan.days}

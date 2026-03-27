@@ -7,6 +7,7 @@ const CONFIG_FILENAME = "config.json";
 export interface AppConfig {
   dataDirectory: string;
   firstDayOfWeek?: number; // 0=Monday, 6=Sunday (matches internal dayOfWeek)
+  exportDirectory?: string; // Default directory for shopping list exports
 }
 
 /** Get the fixed config file path in %APPDATA%/com.meal-planner.app/ */

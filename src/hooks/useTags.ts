@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type { TagDefinition } from "../types/meals";
 import { readJson, writeJson } from "../lib/storage";
 import { TAG_COLOR_PALETTE } from "../data/tag-colors";
@@ -31,6 +31,11 @@ function slugify(label: string): string {
 export function useTags() {
   const [tags, setTags] = useState<TagDefinition[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const tagsRef = useRef<TagDefinition[]>([]);
+
+  useEffect(() => {
+    tagsRef.current = tags;
+  }, [tags]);
 
   useEffect(() => {
     loadTags();
@@ -38,16 +43,15 @@ export function useTags() {
 
   async function loadTags() {
     const data = await readJson<TagDefinition[]>(TAGS_FILE);
-    if (data) {
-      setTags(data);
-    } else {
-      setTags(DEFAULT_TAGS);
-      await writeJson(TAGS_FILE, DEFAULT_TAGS);
-    }
+    const list = data || DEFAULT_TAGS;
+    if (!data) await writeJson(TAGS_FILE, DEFAULT_TAGS);
+    setTags(list);
+    tagsRef.current = list;
     setLoaded(true);
   }
 
   const saveTags = useCallback(async (updated: TagDefinition[]) => {
+    tagsRef.current = updated;
     setTags(updated);
     await writeJson(TAGS_FILE, updated);
   }, []);
@@ -58,29 +62,42 @@ export function useTags() {
       const tag: TagDefinition = {
         id,
         label: label.trim(),
-        colorIndex: tags.length % TAG_COLOR_PALETTE.length,
+        colorIndex: tagsRef.current.length % TAG_COLOR_PALETTE.length,
       };
-      await saveTags([...tags, tag]);
+      await saveTags([...tagsRef.current, tag]);
       return tag;
     },
-    [tags, saveTags]
+    [saveTags]
   );
 
   const removeTag = useCallback(
     async (id: string) => {
-      await saveTags(tags.filter((t) => t.id !== id));
+      await saveTags(tagsRef.current.filter((t) => t.id !== id));
     },
-    [tags, saveTags]
+    [saveTags]
   );
 
   const updateTag = useCallback(
     async (id: string, updates: Partial<Omit<TagDefinition, "id">>) => {
       await saveTags(
-        tags.map((t) => (t.id === id ? { ...t, ...updates } : t))
+        tagsRef.current.map((t) => (t.id === id ? { ...t, ...updates } : t))
       );
     },
-    [tags, saveTags]
+    [saveTags]
   );
 
-  return { tags, loaded, addTag, removeTag, updateTag };
+  const renameTag = useCallback(
+    async (oldId: string, newLabel: string): Promise<string> => {
+      const newId = slugify(newLabel);
+      await saveTags(
+        tagsRef.current.map((t) =>
+          t.id === oldId ? { ...t, id: newId, label: newLabel.trim() } : t
+        )
+      );
+      return newId;
+    },
+    [saveTags]
+  );
+
+  return { tags, loaded, addTag, removeTag, updateTag, renameTag };
 }

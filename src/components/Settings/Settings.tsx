@@ -1,12 +1,11 @@
-import { useState } from "react";
-import { setDataDirectory, promptForDataDirectory, ensureDataDirectory } from "../../lib/dataDirectory";
+import { useState, useEffect } from "react";
+import { setDataDirectory, promptForDataDirectory, ensureDataDirectory, getAppConfig, updateAppConfig } from "../../lib/dataDirectory";
 import { getStorageDirectory, setStorageDirectory } from "../../lib/storage";
 import { exportAllData, importAllData, validateBulkData } from "../../lib/bulkExportImport";
 import { save, open } from "@tauri-apps/plugin-dialog";
 import { writeTextFile, readTextFile } from "@tauri-apps/plugin-fs";
-import { useTags } from "../../hooks/useTags";
 import { useIngredients } from "../../hooks/useIngredients";
-import type { StoreCategory } from "../../types/meals";
+import type { Meal, MealDefinition, StoreCategory, TagDefinition } from "../../types/meals";
 import { STORE_CATEGORIES } from "../../types/meals";
 import { TAG_COLOR_PALETTE } from "../../data/tag-colors";
 import { DAY_NAMES } from "../../types/planner";
@@ -17,12 +16,39 @@ const DAY_NAME_OPTIONS: [number, string][] = DAY_NAMES.map((name, i) => [i, name
 interface SettingsProps {
   firstDayOfWeek: number;
   setFirstDayOfWeek: (day: number) => void;
+  tagLib: {
+    tags: TagDefinition[];
+    addTag: (label: string) => Promise<TagDefinition>;
+    removeTag: (id: string) => Promise<void>;
+    updateTag: (id: string, updates: Partial<Omit<TagDefinition, "id">>) => Promise<void>;
+    renameTag: (oldId: string, newLabel: string) => Promise<string>;
+  };
+  mealLib: {
+    meals: Meal[];
+    updateMeal: (id: string, def: Partial<MealDefinition>) => Promise<void>;
+  };
 }
 
-export default function Settings({ firstDayOfWeek, setFirstDayOfWeek }: SettingsProps) {
+function slugify(label: string): string {
+  return label
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+export default function Settings({ firstDayOfWeek, setFirstDayOfWeek, tagLib, mealLib }: SettingsProps) {
   const [currentDir] = useState(getStorageDirectory() || "");
+  const [exportDir, setExportDir] = useState<string>("");
   const [status, setStatus] = useState<string | null>(null);
-  const { tags, addTag, removeTag } = useTags();
+
+  useEffect(() => {
+    getAppConfig().then((config) => {
+      if (config?.exportDirectory) setExportDir(config.exportDirectory);
+    });
+  }, []);
+  const { tags, addTag, removeTag, renameTag } = tagLib;
+  const { meals, updateMeal } = mealLib;
   const { ingredients, addIngredient, updateIngredient, deleteIngredient } = useIngredients();
   const [newTagLabel, setNewTagLabel] = useState("");
   const [showIngredients, setShowIngredients] = useState(false);
@@ -79,8 +105,44 @@ export default function Settings({ firstDayOfWeek, setFirstDayOfWeek }: Settings
 
   async function handleAddTag() {
     if (!newTagLabel.trim()) return;
+    const slug = slugify(newTagLabel);
+    if (tags.some((t) => t.id === slug)) {
+      setStatus(`Tag "${newTagLabel.trim()}" already exists.`);
+      return;
+    }
     await addTag(newTagLabel);
     setNewTagLabel("");
+  }
+
+  async function handleRemoveTag(tag: TagDefinition) {
+    const mealsWithTag = meals.filter((m) => m.tags.includes(tag.id));
+    const msg = mealsWithTag.length > 0
+      ? `Remove tag "${tag.label}"? It will be stripped from ${mealsWithTag.length} meal${mealsWithTag.length !== 1 ? "s" : ""}.`
+      : `Remove tag "${tag.label}"?`;
+    if (!confirm(msg)) return;
+    await removeTag(tag.id);
+    for (const meal of mealsWithTag) {
+      await updateMeal(meal.id, { tags: meal.tags.filter((t) => t !== tag.id) });
+    }
+  }
+
+  async function handleRenameTag(tag: TagDefinition) {
+    const newLabel = prompt("Rename tag:", tag.label);
+    if (!newLabel || newLabel.trim() === tag.label) return;
+    const newSlug = slugify(newLabel);
+    if (newSlug !== tag.id && tags.some((t) => t.id === newSlug)) {
+      setStatus(`A tag "${newLabel.trim()}" already exists.`);
+      return;
+    }
+    const oldId = tag.id;
+    await renameTag(oldId, newLabel);
+    if (newSlug !== oldId) {
+      for (const meal of meals) {
+        if (meal.tags.includes(oldId)) {
+          await updateMeal(meal.id, { tags: meal.tags.map((t) => (t === oldId ? newSlug : t)) });
+        }
+      }
+    }
   }
 
   return (
@@ -96,6 +158,29 @@ export default function Settings({ firstDayOfWeek, setFirstDayOfWeek }: Settings
           </code>
           <button
             onClick={handleChangeDirectory}
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+          >
+            Change...
+          </button>
+        </div>
+      </section>
+
+      {/* Export Directory */}
+      <section>
+        <h3 className="text-sm font-semibold text-gray-700 mb-2">Shopping List Export Directory</h3>
+        <p className="text-xs text-gray-500 mb-2">Where exported shopping lists are saved (as shopping-list-yyyy-mm-dd.txt).</p>
+        <div className="flex items-center gap-3">
+          <code className="flex-1 text-xs bg-gray-100 px-3 py-2 rounded border border-gray-200 text-gray-700 overflow-hidden text-ellipsis">
+            {exportDir || "Not set — you'll be prompted on first export"}
+          </code>
+          <button
+            onClick={async () => {
+              const chosen = await open({ directory: true, title: "Choose export folder for shopping lists" });
+              if (typeof chosen === "string") {
+                await updateAppConfig({ exportDirectory: chosen });
+                setExportDir(chosen);
+              }
+            }}
             className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
           >
             Change...
@@ -145,9 +230,15 @@ export default function Settings({ firstDayOfWeek, setFirstDayOfWeek }: Settings
                 TAG_COLOR_PALETTE[tag.colorIndex % TAG_COLOR_PALETTE.length]
               }`}
             >
-              {tag.label}
               <button
-                onClick={() => removeTag(tag.id)}
+                onClick={() => handleRenameTag(tag)}
+                className="hover:opacity-70"
+                title="Click to rename"
+              >
+                {tag.label}
+              </button>
+              <button
+                onClick={() => handleRemoveTag(tag)}
                 className="ml-0.5 hover:opacity-70"
                 title="Remove tag"
               >

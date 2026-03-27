@@ -25,7 +25,7 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [needsSetup, setNeedsSetup] = useState(false);
   const [ready, setReady] = useState(false);
-  const [activeTab, setActiveTab] = useState<Tab>("meals");
+  const [activeTab, setActiveTab] = useState<Tab>("planner");
 
   useEffect(() => {
     initApp();
@@ -147,6 +147,8 @@ function MainApp({
           <Settings
             firstDayOfWeek={settingsLib.firstDayOfWeek}
             setFirstDayOfWeek={settingsLib.setFirstDayOfWeek}
+            tagLib={tagLib}
+            mealLib={mealLib}
           />
         )}
       </main>
