@@ -180,38 +180,63 @@ function CategorySection({
         </div>
       ) : (
         <div className="flex flex-wrap gap-2">
-          {items.map((item) => (
-            <label
-              key={item.id}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm cursor-pointer transition ${
-                selected.includes(item.id)
-                  ? "border-blue-400 bg-blue-50 text-blue-700"
-                  : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
-              }`}
-            >
-              <input
-                type="checkbox"
-                checked={selected.includes(item.id)}
-                onChange={() => toggle(item.id)}
-                className="sr-only"
-              />
-              <span
-                className={`w-3.5 h-3.5 rounded border flex items-center justify-center text-[10px] ${
-                  selected.includes(item.id)
-                    ? "bg-blue-500 border-blue-500 text-white"
-                    : "border-gray-300"
-                }`}
-              >
-                {selected.includes(item.id) && "✓"}
-              </span>
-              {item.name}
-              {item.quantity != null && (
-                <span className="text-xs text-gray-400 ml-1">
-                  ({item.quantity}{item.unit ? ` ${item.unit}` : ""})
-                </span>
-              )}
-            </label>
-          ))}
+          {items.map((item) => {
+            const isSelected = selected.includes(item.id);
+            return (
+              <div key={item.id} className="flex items-center gap-1">
+                <label
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm cursor-pointer transition ${
+                    isSelected
+                      ? "border-blue-400 bg-blue-50 text-blue-700"
+                      : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => toggle(item.id)}
+                    className="sr-only"
+                  />
+                  <span
+                    className={`w-3.5 h-3.5 rounded border flex items-center justify-center text-[10px] ${
+                      isSelected
+                        ? "bg-blue-500 border-blue-500 text-white"
+                        : "border-gray-300"
+                    }`}
+                  >
+                    {isSelected && "✓"}
+                  </span>
+                  {item.name}
+                </label>
+                {isSelected && (
+                  <div className="flex items-center gap-0.5">
+                    <input
+                      type="number"
+                      value={item.quantity ?? ""}
+                      onChange={(e) =>
+                        onUpdateItem(item.id, {
+                          quantity: e.target.value ? parseFloat(e.target.value) : undefined,
+                        })
+                      }
+                      placeholder="Qty"
+                      min={0}
+                      step="any"
+                      className="w-14 px-1.5 py-1 border border-gray-300 rounded text-xs text-center"
+                    />
+                    <input
+                      type="text"
+                      value={item.unit ?? ""}
+                      onChange={(e) =>
+                        onUpdateItem(item.id, { unit: e.target.value || undefined })
+                      }
+                      placeholder="unit"
+                      className="w-14 px-1.5 py-1 border border-gray-300 rounded text-xs"
+                    />
+                  </div>
+                )}
+              </div>
+            );
+          })}
           {items.length === 0 && (
             <p className="text-xs text-gray-400">No items. Click Edit to add some.</p>
           )}

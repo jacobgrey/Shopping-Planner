@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import ConfirmDialog from "../common/ConfirmDialog";
 import { setDataDirectory, promptForDataDirectory, ensureDataDirectory, getAppConfig, updateAppConfig } from "../../lib/dataDirectory";
 import { getStorageDirectory, setStorageDirectory } from "../../lib/storage";
 import { exportAllData, importAllData, validateBulkData } from "../../lib/bulkExportImport";
@@ -52,6 +53,7 @@ export default function Settings({ firstDayOfWeek, setFirstDayOfWeek, tagLib, me
   const { ingredients, addIngredient, updateIngredient, deleteIngredient } = useIngredients();
   const [newTagLabel, setNewTagLabel] = useState("");
   const [showIngredients, setShowIngredients] = useState(false);
+  const [tagToRemove, setTagToRemove] = useState<TagDefinition | null>(null);
 
   async function handleChangeDirectory() {
     const chosen = await promptForDataDirectory();
@@ -114,17 +116,23 @@ export default function Settings({ firstDayOfWeek, setFirstDayOfWeek, tagLib, me
     setNewTagLabel("");
   }
 
-  async function handleRemoveTag(tag: TagDefinition) {
+  function getRemoveTagMessage(tag: TagDefinition): string {
     const mealsWithTag = meals.filter((m) => m.tags.includes(tag.id));
-    const msg = mealsWithTag.length > 0
+    return mealsWithTag.length > 0
       ? `Remove tag "${tag.label}"? It will be stripped from ${mealsWithTag.length} meal${mealsWithTag.length !== 1 ? "s" : ""}.`
       : `Remove tag "${tag.label}"?`;
-    if (!confirm(msg)) return;
+  }
+
+  const confirmRemoveTag = useCallback(async () => {
+    if (!tagToRemove) return;
+    const tag = tagToRemove;
+    setTagToRemove(null);
+    const mealsWithTag = meals.filter((m) => m.tags.includes(tag.id));
     await removeTag(tag.id);
     for (const meal of mealsWithTag) {
       await updateMeal(meal.id, { tags: meal.tags.filter((t) => t !== tag.id) });
     }
-  }
+  }, [tagToRemove, meals, removeTag, updateMeal]);
 
   async function handleRenameTag(tag: TagDefinition) {
     const newLabel = prompt("Rename tag:", tag.label);
@@ -147,6 +155,15 @@ export default function Settings({ firstDayOfWeek, setFirstDayOfWeek, tagLib, me
 
   return (
     <div className="max-w-3xl space-y-8">
+      {tagToRemove && (
+        <ConfirmDialog
+          message={getRemoveTagMessage(tagToRemove)}
+          confirmLabel="Remove"
+          danger
+          onConfirm={confirmRemoveTag}
+          onCancel={() => setTagToRemove(null)}
+        />
+      )}
       <h2 className="text-xl font-bold text-gray-800">Settings</h2>
 
       {/* Data directory */}
@@ -238,7 +255,7 @@ export default function Settings({ firstDayOfWeek, setFirstDayOfWeek, tagLib, me
                 {tag.label}
               </button>
               <button
-                onClick={() => handleRemoveTag(tag)}
+                onClick={() => setTagToRemove(tag)}
                 className="ml-0.5 hover:opacity-70"
                 title="Remove tag"
               >

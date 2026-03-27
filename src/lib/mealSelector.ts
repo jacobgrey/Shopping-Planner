@@ -102,7 +102,7 @@ function scoreMeals(
       score += 100;
     }
 
-    // Deal bonus (0-30, capped)
+    // Deal bonus (0-60, capped)
     let dealBonus = 0;
     for (const deal of deals) {
       const dealName = deal.ingredientName.toLowerCase();
@@ -112,9 +112,9 @@ function scoreMeals(
         const ingName = master.name.toLowerCase();
         return ingName.includes(dealName) || dealName.includes(ingName);
       });
-      if (hasIngredient) dealBonus += 10 * deal.biasStrength;
+      if (hasIngredient) dealBonus += 20 * deal.biasStrength;
     }
-    score += Math.min(dealBonus, 30);
+    score += Math.min(dealBonus, 60);
 
     // Recency penalty
     const recentIdx = recentlyUsedIds.indexOf(meal.id);

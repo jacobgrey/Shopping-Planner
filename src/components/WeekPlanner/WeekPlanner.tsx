@@ -1,8 +1,10 @@
+import { useState } from "react";
 import type { Meal, TagDefinition, MasterIngredient } from "../../types/meals";
 import type { DayPlan, Deal } from "../../types/planner";
 import { getDisplayOrder } from "../../types/planner";
 import DayCard from "./DayCard";
 import DealsPanel from "./DealsPanel";
+import ConfirmDialog from "../common/ConfirmDialog";
 
 interface WeekPlannerProps {
   weekOf: string;
@@ -18,6 +20,7 @@ interface WeekPlannerProps {
   onAutoFill: () => void;
   onRegenerateDay: (dayOfWeek: number) => void;
   onClearWeek: () => void;
+  onResetAll: () => void;
   onAddDeal: (deal: Deal) => void;
   onRemoveDeal: (index: number) => void;
 }
@@ -36,9 +39,12 @@ export default function WeekPlanner({
   onAutoFill,
   onRegenerateDay,
   onClearWeek,
+  onResetAll,
   onAddDeal,
   onRemoveDeal,
 }: WeekPlannerProps) {
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+
   function getMeal(mealId?: string): Meal | undefined {
     if (!mealId) return undefined;
     return meals.find((m) => m.id === mealId);
@@ -46,12 +52,30 @@ export default function WeekPlanner({
 
   return (
     <div>
+      {showResetConfirm && (
+        <ConfirmDialog
+          message="Reset everything? This will clear all meal assignments, day tags, deals, and category selections for this week."
+          confirmLabel="Reset All"
+          danger
+          onConfirm={() => {
+            setShowResetConfirm(false);
+            onResetAll();
+          }}
+          onCancel={() => setShowResetConfirm(false)}
+        />
+      )}
       <div className="flex items-center justify-between mb-4">
         <div>
           <h2 className="text-xl font-bold text-gray-800">Weekly Planner</h2>
           <p className="text-sm text-gray-500">Week of {weekOf}</p>
         </div>
         <div className="flex gap-2">
+          <button
+            onClick={() => setShowResetConfirm(true)}
+            className="px-4 py-2 text-sm font-medium text-red-600 bg-white border border-red-300 rounded-lg hover:bg-red-50"
+          >
+            Reset All
+          </button>
           <button
             onClick={onClearWeek}
             className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
