@@ -8,13 +8,20 @@ const PLAN_FILE = "current-week.json";
 const DEALS_FILE = "deals.json";
 const HISTORY_FILE = "meal-history.json";
 
-function getMonday(): string {
+/**
+ * Get the start date of the current week.
+ * firstDayOfWeek uses internal scheme: 0=Mon, 1=Tue, ..., 6=Sun.
+ */
+function getWeekStart(firstDayOfWeek: number = 0): string {
   const now = new Date();
-  const day = now.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  const monday = new Date(now);
-  monday.setDate(now.getDate() + diff);
-  return monday.toISOString().split("T")[0];
+  const jsDay = now.getDay(); // JS: 0=Sun, 1=Mon, ..., 6=Sat
+  // Convert internal dayOfWeek (0=Mon..6=Sun) to JS day (0=Sun..6=Sat)
+  const targetJsDay = firstDayOfWeek === 6 ? 0 : firstDayOfWeek + 1;
+  let diff = targetJsDay - jsDay;
+  if (diff > 0) diff -= 7; // go back to most recent occurrence
+  const start = new Date(now);
+  start.setDate(now.getDate() + diff);
+  return start.toISOString().split("T")[0];
 }
 
 function createEmptyWeek(weekOf: string): WeekPlan {
@@ -33,7 +40,7 @@ function createEmptyWeek(weekOf: string): WeekPlan {
   };
 }
 
-export function useWeekPlanner(meals: Meal[]) {
+export function useWeekPlanner(meals: Meal[], firstDayOfWeek: number = 0) {
   const [plan, setPlan] = useState<WeekPlan | null>(null);
   const [deals, setDeals] = useState<Deal[]>([]);
   const [recentlyUsed, setRecentlyUsed] = useState<string[]>([]);
@@ -55,13 +62,13 @@ export function useWeekPlanner(meals: Meal[]) {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [firstDayOfWeek]);
 
   async function loadData() {
-    const monday = getMonday();
+    const weekStart = getWeekStart(firstDayOfWeek);
     let savedPlan = await readJson<WeekPlan>(PLAN_FILE);
-    if (!savedPlan || savedPlan.weekOf !== monday) {
-      savedPlan = createEmptyWeek(monday);
+    if (!savedPlan || savedPlan.weekOf !== weekStart) {
+      savedPlan = createEmptyWeek(weekStart);
     }
     // Ensure new fields exist on old saved plans
     if (!savedPlan.otherSelections) savedPlan.otherSelections = [];

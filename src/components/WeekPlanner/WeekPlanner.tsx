@@ -1,5 +1,6 @@
-import type { Meal, TagDefinition } from "../../types/meals";
+import type { Meal, TagDefinition, MasterIngredient } from "../../types/meals";
 import type { DayPlan, Deal } from "../../types/planner";
+import { getDisplayOrder } from "../../types/planner";
 import DayCard from "./DayCard";
 import DealsPanel from "./DealsPanel";
 
@@ -9,6 +10,8 @@ interface WeekPlannerProps {
   deals: Deal[];
   meals: Meal[];
   availableTags: TagDefinition[];
+  masterIngredients: MasterIngredient[];
+  firstDayOfWeek: number;
   onSetDayTags: (dayOfWeek: number, tags: string[]) => void;
   onToggleLock: (dayOfWeek: number) => void;
   onSetDayMeal: (dayOfWeek: number, mealId: string | undefined) => void;
@@ -25,6 +28,8 @@ export default function WeekPlanner({
   deals,
   meals,
   availableTags,
+  masterIngredients,
+  firstDayOfWeek,
   onSetDayTags,
   onToggleLock,
   onSetDayMeal,
@@ -70,7 +75,7 @@ export default function WeekPlanner({
       )}
 
       <div className="grid grid-cols-7 gap-3 mb-6">
-        {days.map((day) => (
+        {getDisplayOrder(firstDayOfWeek).map((dow) => days.find((d) => d.dayOfWeek === dow)!).map((day) => (
           <DayCard
             key={day.dayOfWeek}
             day={day}
@@ -85,7 +90,7 @@ export default function WeekPlanner({
         ))}
       </div>
 
-      <DealsPanel deals={deals} onAddDeal={onAddDeal} onRemoveDeal={onRemoveDeal} />
+      <DealsPanel deals={deals} onAddDeal={onAddDeal} onRemoveDeal={onRemoveDeal} masterIngredients={masterIngredients} />
     </div>
   );
 }

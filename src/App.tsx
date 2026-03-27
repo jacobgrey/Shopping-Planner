@@ -11,6 +11,7 @@ import { useMealLibrary } from "./hooks/useMealLibrary";
 import { useIngredients } from "./hooks/useIngredients";
 import { useCategoryItems } from "./hooks/useCategoryItems";
 import { useTags } from "./hooks/useTags";
+import { useSettings } from "./hooks/useSettings";
 import type { WeekPlan } from "./types/planner";
 import TabNav from "./components/common/TabNav";
 import MealLibrary from "./components/MealLibrary/MealLibrary";
@@ -113,6 +114,7 @@ function MainApp({
   const ingredientLib = useIngredients();
   const tagLib = useTags();
   const catItemLib = useCategoryItems();
+  const settingsLib = useSettings();
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
@@ -129,6 +131,8 @@ function MainApp({
           <PlannerPage
             meals={mealLib.meals}
             tags={tagLib.tags}
+            masterIngredients={ingredientLib.ingredients}
+            firstDayOfWeek={settingsLib.firstDayOfWeek}
             categoryItemLib={catItemLib}
           />
         )}
@@ -139,7 +143,12 @@ function MainApp({
             categoryItems={catItemLib.items}
           />
         )}
-        {activeTab === "settings" && <Settings />}
+        {activeTab === "settings" && (
+          <Settings
+            firstDayOfWeek={settingsLib.firstDayOfWeek}
+            setFirstDayOfWeek={settingsLib.setFirstDayOfWeek}
+          />
+        )}
       </main>
     </div>
   );

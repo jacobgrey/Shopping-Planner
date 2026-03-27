@@ -9,8 +9,17 @@ import { useIngredients } from "../../hooks/useIngredients";
 import type { StoreCategory } from "../../types/meals";
 import { STORE_CATEGORIES } from "../../types/meals";
 import { TAG_COLOR_PALETTE } from "../../data/tag-colors";
+import { DAY_NAMES } from "../../types/planner";
 
-export default function Settings() {
+// Maps internal dayOfWeek (0=Mon..6=Sun) to display label
+const DAY_NAME_OPTIONS: [number, string][] = DAY_NAMES.map((name, i) => [i, name]);
+
+interface SettingsProps {
+  firstDayOfWeek: number;
+  setFirstDayOfWeek: (day: number) => void;
+}
+
+export default function Settings({ firstDayOfWeek, setFirstDayOfWeek }: SettingsProps) {
   const [currentDir] = useState(getStorageDirectory() || "");
   const [status, setStatus] = useState<string | null>(null);
   const { tags, addTag, removeTag } = useTags();
@@ -92,6 +101,21 @@ export default function Settings() {
             Change...
           </button>
         </div>
+      </section>
+
+      {/* First Day of Week */}
+      <section>
+        <h3 className="text-sm font-semibold text-gray-700 mb-2">First Day of Week</h3>
+        <p className="text-xs text-gray-500 mb-2">Choose the day your weekly plan starts (e.g. the day you shop).</p>
+        <select
+          value={firstDayOfWeek}
+          onChange={(e) => setFirstDayOfWeek(Number(e.target.value))}
+          className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          {DAY_NAME_OPTIONS.map(([value, label]) => (
+            <option key={value} value={value}>{label}</option>
+          ))}
+        </select>
       </section>
 
       {/* Export/Import */}

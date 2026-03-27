@@ -4,8 +4,9 @@ import { open } from "@tauri-apps/plugin-dialog";
 
 const CONFIG_FILENAME = "config.json";
 
-interface AppConfig {
+export interface AppConfig {
   dataDirectory: string;
+  firstDayOfWeek?: number; // 0=Monday, 6=Sunday (matches internal dayOfWeek)
 }
 
 /** Get the fixed config file path in %APPDATA%/com.meal-planner.app/ */
@@ -55,6 +56,32 @@ export async function promptForDataDirectory(): Promise<string | null> {
 export async function getDefaultDataDirectory(): Promise<string> {
   const appData = await appDataDir();
   return await join(appData, "data");
+}
+
+/** Read full app config */
+export async function getAppConfig(): Promise<AppConfig | null> {
+  try {
+    const configPath = await getConfigPath();
+    if (!(await exists(configPath))) return null;
+    const raw = await readTextFile(configPath);
+    return JSON.parse(raw) as AppConfig;
+  } catch {
+    return null;
+  }
+}
+
+/** Update app config (merges with existing) */
+export async function updateAppConfig(updates: Partial<AppConfig>): Promise<void> {
+  const configPath = await getConfigPath();
+  let config: AppConfig = { dataDirectory: "" };
+  try {
+    if (await exists(configPath)) {
+      const raw = await readTextFile(configPath);
+      config = JSON.parse(raw);
+    }
+  } catch { /* use default */ }
+  Object.assign(config, updates);
+  await writeTextFile(configPath, JSON.stringify(config, null, 2));
 }
 
 /** Ensure the data directory exists */

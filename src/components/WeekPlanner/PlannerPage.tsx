@@ -1,4 +1,4 @@
-import type { Meal, TagDefinition, CategoryItem } from "../../types/meals";
+import type { Meal, TagDefinition, CategoryItem, MasterIngredient } from "../../types/meals";
 import { useWeekPlanner } from "../../hooks/useWeekPlanner";
 import WeekPlanner from "./WeekPlanner";
 import CategoryPlanner from "../CategoryPlanner/CategoryPlanner";
@@ -6,6 +6,8 @@ import CategoryPlanner from "../CategoryPlanner/CategoryPlanner";
 interface PlannerPageProps {
   meals: Meal[];
   tags: TagDefinition[];
+  masterIngredients: MasterIngredient[];
+  firstDayOfWeek: number;
   categoryItemLib: {
     breakfastItems: CategoryItem[];
     lunchItems: CategoryItem[];
@@ -17,8 +19,8 @@ interface PlannerPageProps {
   };
 }
 
-export default function PlannerPage({ meals, tags, categoryItemLib }: PlannerPageProps) {
-  const planner = useWeekPlanner(meals);
+export default function PlannerPage({ meals, tags, masterIngredients, firstDayOfWeek, categoryItemLib }: PlannerPageProps) {
+  const planner = useWeekPlanner(meals, firstDayOfWeek);
 
   if (!planner.loaded || !planner.plan) {
     return <p className="text-gray-500">Loading planner...</p>;
@@ -32,6 +34,8 @@ export default function PlannerPage({ meals, tags, categoryItemLib }: PlannerPag
         deals={planner.deals}
         meals={meals}
         availableTags={tags}
+        masterIngredients={masterIngredients}
+        firstDayOfWeek={firstDayOfWeek}
         onSetDayTags={planner.setDayTags}
         onToggleLock={planner.toggleLock}
         onSetDayMeal={planner.setDayMeal}
