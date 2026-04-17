@@ -127,7 +127,7 @@ export default function WeekPlanner({
         </div>
       )}
 
-      <div className="grid grid-cols-7 gap-3 mb-6">
+      <div className="grid grid-cols-4 min-[1000px]:grid-cols-7 gap-3 mb-6">
         {getDisplayOrder(firstDayOfWeek).map((dow) => days.find((d) => d.dayOfWeek === dow)).filter((d): d is DayPlan => !!d).map((day) => (
           <DayCard
             key={day.dayOfWeek}
