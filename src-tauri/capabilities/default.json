@@ -36,6 +36,7 @@
       "identifier": "http:default",
       "allow": [{ "url": "https://**" }, { "url": "http://**" }]
     },
-    "opener:default"
+    "opener:default",
+    "core:app:allow-version"
   ]
 }

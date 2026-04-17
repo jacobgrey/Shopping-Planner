@@ -8,6 +8,7 @@ import { writeTextFile, readTextFile } from "@tauri-apps/plugin-fs";
 import type { Meal, MealDefinition, MasterIngredient, StoreCategory, TagDefinition } from "../../types/meals";
 import { STORE_CATEGORIES } from "../../types/meals";
 import { TAG_COLOR_PALETTE } from "../../data/tag-colors";
+import AppUpdater from "./AppUpdater";
 import { DAY_NAMES } from "../../types/planner";
 
 // Maps internal dayOfWeek (0=Mon..6=Sun) to display label
@@ -425,6 +426,9 @@ export default function Settings({ firstDayOfWeek, setFirstDayOfWeek, dinnerTime
           </div>
         )}
       </section>
+
+      {/* App Updates */}
+      <AppUpdater />
 
       {/* Status */}
       {status && (
