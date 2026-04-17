@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { saveImage, pickImageFile, fetchImageFromRecipeUrl, fetchImageFromUrl } from "../../lib/mealImages";
+import { saveImage, pickImageFile, fetchImageFromRecipeUrl, fetchImageFromUrl, fetchImageBySearch } from "../../lib/mealImages";
 
 interface MealImagePanelProps {
   mealId: string;
@@ -70,13 +70,20 @@ export default function MealImagePanel({
   }
 
   async function handleFetch() {
-    if (!recipeUrl || fetching) return;
+    if (fetching) return;
     setShowContextMenu(false);
     setFetching(true);
     try {
-      const data = await fetchImageFromRecipeUrl(recipeUrl);
+      let data: Uint8Array | null = null;
+      if (recipeUrl) {
+        data = await fetchImageFromRecipeUrl(recipeUrl);
+      }
+      // Fall back to image search if no recipe URL or recipe fetch failed
       if (!data) {
-        onToast("Could not find an image on that recipe page.", "error");
+        data = await fetchImageBySearch(mealName);
+      }
+      if (!data) {
+        onToast("Could not find an image.", "error");
         return;
       }
       const filename = await saveImage(mealName, data);
@@ -134,13 +141,14 @@ export default function MealImagePanel({
   const menuItems: { label: string; action: () => void; show: boolean }[] = [
     { label: "Upload file", action: handleUpload, show: true },
     { label: "Paste image URL", action: openPasteUrl, show: true },
-    { label: "Fetch from recipe", action: handleFetch, show: !!recipeUrl },
+    { label: recipeUrl ? "Fetch from recipe" : "Fetch image", action: handleFetch, show: true },
     { label: "Remove image", action: handleRemove, show: !!(imageFilename || imageSrc) },
   ];
 
   return (
     <div
       className={`bg-gray-100 flex items-center justify-center ${compact ? "" : "rounded-lg border border-gray-200 min-h-[180px]"} relative`}
+      onClick={(e) => e.stopPropagation()}
       onContextMenu={handleContextMenu}
       style={compact ? { width: "40%", flexShrink: 0 } : undefined}
     >
@@ -167,11 +175,9 @@ export default function MealImagePanel({
         </div>
       ) : (
         <div className="flex flex-col items-center gap-1.5 p-2">
-          {recipeUrl && (
-            <button onClick={handleFetch} disabled={fetching} className={`${btnPad} ${textSize} font-medium text-blue-600 bg-white border border-blue-300 rounded hover:bg-blue-50 disabled:opacity-50`}>
-              Fetch image
-            </button>
-          )}
+          <button onClick={handleFetch} disabled={fetching} className={`${btnPad} ${textSize} font-medium text-blue-600 bg-white border border-blue-300 rounded hover:bg-blue-50 disabled:opacity-50`}>
+            {recipeUrl ? "Fetch from recipe" : "Fetch image"}
+          </button>
           <button onClick={handleUpload} disabled={fetching} className={`${btnPad} ${textSize} font-medium text-gray-600 bg-white border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50`}>
             Upload file
           </button>

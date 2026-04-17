@@ -10,6 +10,7 @@ export interface AppConfig {
   exportDirectory?: string; // Default directory for shopping list exports
   dinnerTime?: string; // HH:mm format, default "18:00"
   mealCardSize?: "small" | "medium" | "large";
+  detailSectionOrder?: string[];
 }
 
 /** Get the fixed config file path in %APPDATA%/com.meal-planner.app/ */

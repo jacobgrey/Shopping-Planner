@@ -1,16 +1,20 @@
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import type { Meal, MealDefinition, MasterIngredient, TagDefinition } from "../../types/meals";
 import TagBadge from "../common/TagBadge";
 import NoteText from "../common/NoteText";
-import MealEditor from "./MealEditor";
+import MealDetails from "./MealDetails";
 import MealImport from "./MealImport";
 import Toast from "../common/Toast";
 import { CARD_BORDER } from "../../lib/theme";
 import { useMealImages } from "../../hooks/useMealImages";
 import MealImagePanel from "./MealImagePanel";
-import { openExternal } from "../../lib/openExternal";
 
 type SortMode = "name-az" | "name-za" | "by-tag" | "prep-time";
+
+type ViewMode =
+  | { view: "grid" }
+  | { view: "details"; mealId: string }
+  | { view: "import" };
 
 interface MealLibraryProps {
   mealLib: {
@@ -38,6 +42,8 @@ interface MealLibraryProps {
     findByName: (name: string) => MasterIngredient | undefined;
   };
   mealCardSize: "small" | "medium" | "large";
+  detailSectionOrder: string[];
+  onSectionOrderChange: (order: string[]) => void;
 }
 
 const CARD_SIZES = {
@@ -46,22 +52,14 @@ const CARD_SIZES = {
   large: { height: "h-[280px]", grid: "grid-cols-1 md:grid-cols-2" },
 };
 
-export default function MealLibrary({ mealLib, tagLib, ingredientLib, mealCardSize }: MealLibraryProps) {
+export default function MealLibrary({ mealLib, tagLib, ingredientLib, mealCardSize, detailSectionOrder, onSectionOrderChange }: MealLibraryProps) {
   const { meals, loaded, addMeal, updateMeal, deleteMeal, importMeals } = mealLib;
   const { tags, loaded: tagsLoaded } = tagLib;
   const { ingredients, loaded: ingsLoaded, addIngredient } = ingredientLib;
   const [searchQuery, setSearchQuery] = useState("");
   const [filterTag, setFilterTag] = useState<string>("");
   const [sortMode, setSortMode] = useState<SortMode>("name-az");
-  const [editingMeal, setEditingMeal] = useState<Meal | null>(null);
-  const [showEditor, setShowEditor] = useState(false);
-  const [showImport, setShowImport] = useState(false);
-
-  // Quick-edit states
-  const [editingNotesId, setEditingNotesId] = useState<string | null>(null);
-  const [editingNotesValue, setEditingNotesValue] = useState("");
-  const [editingUrlId, setEditingUrlId] = useState<string | null>(null);
-  const [editingUrlValue, setEditingUrlValue] = useState("");
+  const [viewMode, setViewMode] = useState<ViewMode>({ view: "grid" });
 
   // Image states
   const { images, reloadImage, removeImage } = useMealImages(meals);
@@ -103,74 +101,22 @@ export default function MealLibrary({ mealLib, tagLib, ingredientLib, mealCardSi
     }
   });
 
-  function handleNewMeal() {
-    setEditingMeal(null);
-    setShowEditor(true);
-  }
-
-  function handleEditMeal(meal: Meal) {
-    setEditingMeal(meal);
-    setShowEditor(true);
-  }
-
-  async function handleSaveMeal(def: MealDefinition) {
-    if (editingMeal) {
-      await updateMeal(editingMeal.id, def);
-    } else {
-      await addMeal(def);
-    }
-    setShowEditor(false);
-    setEditingMeal(null);
-  }
-
-  async function handleAddMasterIngredient(
-    def: Omit<MasterIngredient, "id">
-  ): Promise<MasterIngredient> {
-    return await addIngredient(def);
-  }
-
-  // Quick-edit handlers
-  function startEditNotes(meal: Meal) {
-    setEditingNotesId(meal.id);
-    setEditingNotesValue(meal.notes || "");
-  }
-
-  async function saveNotes(mealId: string) {
+  async function handleNewMeal() {
     try {
-      await updateMeal(mealId, { notes: editingNotesValue.trim() || undefined });
-      setEditingNotesId(null);
+      const blank: MealDefinition = {
+        name: "",
+        ingredients: [],
+        tags: [],
+      };
+      const newMeal = await addMeal(blank);
+      setViewMode({ view: "details", mealId: newMeal.id });
     } catch (e) {
-      console.error("Failed to save notes:", e);
-      // Keep editor open so user can retry
-    }
-  }
-
-  function startEditUrl(meal: Meal) {
-    setEditingUrlId(meal.id);
-    setEditingUrlValue(meal.recipeUrl || "");
-  }
-
-  async function saveUrl(mealId: string) {
-    try {
-      await updateMeal(mealId, { recipeUrl: editingUrlValue.trim() || undefined });
-      setEditingUrlId(null);
-    } catch (e) {
-      console.error("Failed to save URL:", e);
-    }
-  }
-
-  function handleUrlKeyDown(e: React.KeyboardEvent, mealId: string) {
-    if (e.key === "Enter" || e.key === "Tab") {
-      e.preventDefault();
-      saveUrl(mealId);
+      console.error("Failed to create meal:", e);
+      setToast({ message: "Failed to create meal", type: "error" });
     }
   }
 
   // Image handlers
-  const showToast = useCallback((message: string, type: "error" | "success" | "info" = "error") => {
-    setToast({ message, type });
-  }, []);
-
   async function handleImageSaved(mealId: string, filename: string) {
     await updateMeal(mealId, { imageFilename: filename });
     reloadImage(mealId, filename);
@@ -181,37 +127,40 @@ export default function MealLibrary({ mealLib, tagLib, ingredientLib, mealCardSi
     removeImage(mealId);
   }
 
-  function handleOpenUrl(e: React.MouseEvent, url: string) {
-    e.preventDefault();
-    openExternal(url);
-  }
-
-  if (showEditor) {
+  // Details view
+  if (viewMode.view === "details") {
+    const meal = meals.find((m) => m.id === viewMode.mealId);
+    if (!meal) {
+      // Meal was deleted — this is expected after handleDelete.
+      // Return grid directly; React supports setState-during-render for own state.
+      setViewMode({ view: "grid" });
+      return null;
+    }
     return (
-      <MealEditor
-        meal={editingMeal}
+      <MealDetails
+        meal={meal}
         masterIngredients={ingredients}
         availableTags={tags}
-        imageSrc={editingMeal ? images.get(editingMeal.id) : undefined}
-        onSave={handleSaveMeal}
-        onCancel={() => {
-          setShowEditor(false);
-          setEditingMeal(null);
-        }}
+        imageSrc={images.get(meal.id)}
+        detailSectionOrder={detailSectionOrder}
+        onUpdate={updateMeal}
+        onDelete={deleteMeal}
+        onBack={() => setViewMode({ view: "grid" })}
+        onAddMasterIngredient={addIngredient}
         onImageSaved={handleImageSaved}
         onImageRemoved={handleImageRemoved}
-        onAddMasterIngredient={handleAddMasterIngredient}
+        onSectionOrderChange={onSectionOrderChange}
       />
     );
   }
 
-  if (showImport) {
+  if (viewMode.view === "import") {
     return (
       <MealImport
         ingredientLib={ingredientLib}
         tagLib={tagLib}
         onImport={importMeals}
-        onClose={() => setShowImport(false)}
+        onClose={() => setViewMode({ view: "grid" })}
       />
     );
   }
@@ -227,7 +176,7 @@ export default function MealLibrary({ mealLib, tagLib, ingredientLib, mealCardSi
         </h2>
         <div className="flex gap-2">
           <button
-            onClick={() => setShowImport(true)}
+            onClick={() => setViewMode({ view: "import" })}
             className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
           >
             Import JSON
@@ -302,27 +251,12 @@ export default function MealLibrary({ mealLib, tagLib, ingredientLib, mealCardSi
             return (
               <div
                 key={meal.id}
-                className={`bg-white rounded-lg border ${CARD_BORDER} overflow-hidden hover:shadow-sm transition ${CARD_SIZES[mealCardSize].height} flex`}
+                onClick={() => setViewMode({ view: "details", mealId: meal.id })}
+                className={`bg-white rounded-lg border ${CARD_BORDER} overflow-hidden hover:shadow-sm transition ${CARD_SIZES[mealCardSize].height} flex cursor-pointer`}
               >
                 {/* Left: Info */}
                 <div className="flex-1 p-3 flex flex-col min-w-0 overflow-hidden">
-                  <div className="flex items-start justify-between gap-1 mb-1">
-                    <h3 className="font-semibold text-gray-800 text-sm truncate">{meal.name}</h3>
-                    <div className="flex gap-1.5 shrink-0">
-                      <button
-                        onClick={() => handleEditMeal(meal)}
-                        className="text-[10px] text-blue-600 hover:text-blue-800"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => deleteMeal(meal.id)}
-                        className="text-[10px] text-red-500 hover:text-red-700"
-                      >
-                        Del
-                      </button>
-                    </div>
-                  </div>
+                  <h3 className="font-semibold text-gray-800 text-sm truncate mb-1">{meal.name || "Untitled Meal"}</h3>
                   {meal.sides && meal.sides.length > 0 && (
                     <p className="text-[10px] text-gray-500 truncate mb-1">+ {meal.sides.join(", ")}</p>
                   )}
@@ -342,67 +276,18 @@ export default function MealLibrary({ mealLib, tagLib, ingredientLib, mealCardSi
                     {meal.startTimeHours ? ` · ${meal.startTimeHours}h start` : ""}
                   </p>
 
-                  {/* Recipe URL / Search link */}
-                  <div className="text-[10px] mb-1 flex items-center gap-1">
-                    {meal.recipeUrl ? (
-                      <>
-                        <a href={meal.recipeUrl} onClick={(e) => handleOpenUrl(e, meal.recipeUrl!)} className="text-blue-500 hover:text-blue-700 underline truncate cursor-pointer">
-                          {(() => { try { return new URL(meal.recipeUrl).hostname.replace(/^www\./, ""); } catch { return "Recipe"; } })()}
-                        </a>
-                        <button onClick={() => startEditUrl(meal)} className="text-gray-400 hover:text-gray-600 shrink-0" title="Edit URL">
-                          <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <a
-                          href="#"
-                          onClick={(e) => handleOpenUrl(e, `https://www.google.com/search?q=${encodeURIComponent(meal.name + " recipe")}`)}
-                          className="text-gray-400 hover:text-gray-600 italic cursor-pointer"
-                        >
-                          Search recipe
-                        </a>
-                        <button onClick={() => startEditUrl(meal)} className="text-gray-400 hover:text-gray-600 shrink-0" title="Add recipe URL">
-                          <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
-                        </button>
-                      </>
-                    )}
-                  </div>
-                  {editingUrlId === meal.id && (
-                    <input
-                      type="url"
-                      value={editingUrlValue}
-                      onChange={(e) => setEditingUrlValue(e.target.value)}
-                      onBlur={() => saveUrl(meal.id)}
-                      onKeyDown={(e) => handleUrlKeyDown(e, meal.id)}
-                      autoFocus
-                      placeholder="Paste recipe URL..."
-                      className="w-full px-1.5 py-0.5 text-[10px] border border-blue-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-400 mb-1"
-                    />
+                  {/* Recipe URL (display only) */}
+                  {meal.recipeUrl && (
+                    <p className="text-[10px] text-blue-500 truncate mb-1">
+                      {(() => { try { return new URL(meal.recipeUrl).hostname.replace(/^www\./, ""); } catch { return "Recipe"; } })()}
+                    </p>
                   )}
 
-                  {/* Notes (quick-edit) */}
+                  {/* Notes preview (display only) */}
                   <div className="flex-1 min-h-0 mt-auto">
-                    {editingNotesId === meal.id ? (
-                      <textarea
-                        value={editingNotesValue}
-                        onChange={(e) => setEditingNotesValue(e.target.value)}
-                        onBlur={() => saveNotes(meal.id)}
-                        autoFocus
-                        rows={3}
-                        className="w-full px-1.5 py-0.5 text-[10px] border border-blue-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-400 resize-none"
-                      />
-                    ) : (
-                      <div
-                        onClick={() => startEditNotes(meal)}
-                        className="text-[10px] text-gray-400 line-clamp-3 cursor-text hover:text-gray-500"
-                        title="Click to edit notes"
-                      >
-                        {meal.notes ? (
-                          <NoteText text={meal.notes} className="text-[10px] text-gray-400" />
-                        ) : (
-                          <span className="italic">Add notes...</span>
-                        )}
+                    {meal.notes && (
+                      <div className="text-[10px] text-gray-400 line-clamp-3">
+                        <NoteText text={meal.notes} className="text-[10px] text-gray-400" />
                       </div>
                     )}
                   </div>
@@ -418,7 +303,7 @@ export default function MealLibrary({ mealLib, tagLib, ingredientLib, mealCardSi
                   compact
                   onImageSaved={handleImageSaved}
                   onImageRemoved={handleImageRemoved}
-                  onToast={showToast}
+                  onToast={(msg, type) => setToast({ message: msg, type })}
                 />
               </div>
             );

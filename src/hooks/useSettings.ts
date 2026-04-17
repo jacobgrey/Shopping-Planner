@@ -5,6 +5,7 @@ export function useSettings() {
   const [firstDayOfWeek, setFirstDayOfWeekState] = useState(0); // 0=Monday default
   const [dinnerTime, setDinnerTimeState] = useState("18:00");
   const [mealCardSize, setMealCardSizeState] = useState<"small" | "medium" | "large">("medium");
+  const [detailSectionOrder, setDetailSectionOrderState] = useState<string[]>(["info", "recipe-ingredients", "nutrition"]);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -17,6 +18,9 @@ export function useSettings() {
       }
       if (config?.mealCardSize !== undefined) {
         setMealCardSizeState(config.mealCardSize);
+      }
+      if (config?.detailSectionOrder !== undefined) {
+        setDetailSectionOrderState(config.detailSectionOrder);
       }
       setLoaded(true);
     });
@@ -37,5 +41,10 @@ export function useSettings() {
     await updateAppConfig({ mealCardSize: size });
   }, []);
 
-  return { firstDayOfWeek, setFirstDayOfWeek, dinnerTime, setDinnerTime, mealCardSize, setMealCardSize, loaded };
+  const setDetailSectionOrder = useCallback(async (order: string[]) => {
+    setDetailSectionOrderState(order);
+    await updateAppConfig({ detailSectionOrder: order });
+  }, []);
+
+  return { firstDayOfWeek, setFirstDayOfWeek, dinnerTime, setDinnerTime, mealCardSize, setMealCardSize, detailSectionOrder, setDetailSectionOrder, loaded };
 }

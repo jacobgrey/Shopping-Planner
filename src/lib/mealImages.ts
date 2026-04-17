@@ -177,6 +177,66 @@ export async function fetchImageFromRecipeUrl(recipeUrl: string): Promise<Uint8A
   }
 }
 
+/** Search Google Images for a meal name and fetch the first result. Returns image binary data or null. */
+export async function fetchImageBySearch(mealName: string): Promise<Uint8Array | null> {
+  try {
+    const query = encodeURIComponent(mealName + " food");
+    const searchUrl = `https://www.google.com/search?q=${query}&tbm=isch&udm=2`;
+    const pageResp = await tauriFetch(searchUrl, {
+      method: "GET",
+      headers: {
+        "User-Agent": BROWSER_UA,
+        "Accept": "text/html,application/xhtml+xml",
+      },
+    });
+    if (!pageResp.ok) return null;
+    const html = await pageResp.text();
+
+    // Google Images embeds image URLs in various patterns
+    // Look for data that contains actual image URLs
+    const imgUrls: string[] = [];
+
+    // Pattern: ["https://...jpg",width,height] in inline scripts
+    const scriptPattern = /\["(https?:\/\/[^"]+\.(?:jpg|jpeg|png|webp)(?:\?[^"]*)?)",[0-9]+,[0-9]+\]/gi;
+    for (const m of html.matchAll(scriptPattern)) {
+      const url = m[1];
+      // Skip Google's own thumbnails and icons
+      if (!url.includes("gstatic.com") && !url.includes("google.com")) {
+        imgUrls.push(url);
+      }
+    }
+
+    // Fallback: look for og:image or any large image URL in the page
+    if (imgUrls.length === 0) {
+      const ogMatch = html.match(/<meta[^>]+property\s*=\s*["']og:image["'][^>]+content\s*=\s*["']([^"']+)["']/i);
+      if (ogMatch) imgUrls.push(ogMatch[1]);
+    }
+
+    if (imgUrls.length === 0) return null;
+
+    // Try fetching the first few URLs until one succeeds
+    for (const imgUrl of imgUrls.slice(0, 3)) {
+      try {
+        // Unescape unicode sequences that Google may use
+        const cleanUrl = imgUrl.replace(/\\u003d/g, "=").replace(/\\u0026/g, "&");
+        const imgResp = await tauriFetch(cleanUrl, {
+          method: "GET",
+          headers: { "User-Agent": BROWSER_UA, "Accept": "image/*" },
+        });
+        if (!imgResp.ok) continue;
+        const buf = await imgResp.arrayBuffer();
+        if (buf.byteLength < 1000) continue; // Too small, probably not a real image
+        return new Uint8Array(buf);
+      } catch {
+        continue; // Try next URL
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 /** Fetch an image directly from a URL. Returns binary data or throws with details. */
 export async function fetchImageFromUrl(imageUrl: string): Promise<Uint8Array | null> {
   // Build headers safely — Referer may fail on malformed URLs

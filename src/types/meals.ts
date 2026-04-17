@@ -80,6 +80,7 @@ export interface ImportMealDefinition {
   recipeUrl?: string;
   imageFilename?: string;
   notes?: string;
+  nutrition?: string;
 }
 
 // --- Internal meal ---
@@ -94,6 +95,7 @@ export interface MealDefinition {
   recipeUrl?: string;
   imageFilename?: string;
   notes?: string;
+  nutrition?: string;
 }
 
 export interface Meal extends MealDefinition {
