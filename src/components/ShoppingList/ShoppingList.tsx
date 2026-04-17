@@ -1,4 +1,4 @@
-import type { Meal, MasterIngredient, CategoryItem } from "../../types/meals";
+import type { Meal, Side, MasterIngredient, CategoryItem } from "../../types/meals";
 import type { WeekPlan } from "../../types/planner";
 import type { ShoppingItem } from "../../types/shopping";
 import { useShoppingList } from "../../hooks/useShoppingList";
@@ -14,6 +14,7 @@ import { CARD_BORDER } from "../../lib/theme";
 interface ShoppingListProps {
   plan: WeekPlan | null;
   meals: Meal[];
+  sides: Side[];
   masterIngredients: MasterIngredient[];
   categoryItems: CategoryItem[];
 }
@@ -71,9 +72,9 @@ async function handleExport(
   }
 }
 
-export default function ShoppingList({ plan, meals, masterIngredients, categoryItems }: ShoppingListProps) {
+export default function ShoppingList({ plan, meals, sides, masterIngredients, categoryItems }: ShoppingListProps) {
   const { items, sortMode, setSortMode, toggleItem, checkAll, totalEstimatedCost } =
-    useShoppingList(plan, meals, masterIngredients, categoryItems);
+    useShoppingList(plan, meals, sides, masterIngredients, categoryItems);
   const [exportStatus, setExportStatus] = useState<string | null>(null);
 
   if (!plan) {

@@ -1,6 +1,6 @@
 import { CARD_BORDER } from "../../lib/theme";
 
-type Tab = "meals" | "planner" | "shopping" | "settings";
+type Tab = "meals" | "sides" | "planner" | "shopping" | "settings";
 
 interface TabNavProps {
   activeTab: Tab;
@@ -11,6 +11,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "planner", label: "Planner" },
   { id: "shopping", label: "Shopping List" },
   { id: "meals", label: "Meals" },
+  { id: "sides", label: "Sides" },
   { id: "settings", label: "Settings" },
 ];
 

@@ -1,4 +1,4 @@
-import type { Meal, TagDefinition, CategoryItem, MasterIngredient } from "../../types/meals";
+import type { Meal, Side, TagDefinition, CategoryItem, MasterIngredient } from "../../types/meals";
 import { useWeekPlanner } from "../../hooks/useWeekPlanner";
 import { useMealImages } from "../../hooks/useMealImages";
 import WeekPlanner from "./WeekPlanner";
@@ -6,6 +6,7 @@ import CategoryPlanner from "../CategoryPlanner/CategoryPlanner";
 
 interface PlannerPageProps {
   meals: Meal[];
+  sides: Side[];
   tags: TagDefinition[];
   masterIngredients: MasterIngredient[];
   firstDayOfWeek: number;
@@ -22,8 +23,8 @@ interface PlannerPageProps {
   };
 }
 
-export default function PlannerPage({ meals, tags, masterIngredients, firstDayOfWeek, dinnerTime, categoryItemLib }: PlannerPageProps) {
-  const planner = useWeekPlanner(meals, firstDayOfWeek);
+export default function PlannerPage({ meals, sides, tags, masterIngredients, firstDayOfWeek, dinnerTime, categoryItemLib }: PlannerPageProps) {
+  const planner = useWeekPlanner(meals, sides, masterIngredients, firstDayOfWeek);
   const { images: mealImages } = useMealImages(meals);
 
   if (!planner.loaded || !planner.plan) {
@@ -37,12 +38,16 @@ export default function PlannerPage({ meals, tags, masterIngredients, firstDayOf
         days={planner.plan.days}
         deals={planner.deals}
         meals={meals}
+        sides={sides}
         availableTags={tags}
         masterIngredients={masterIngredients}
         firstDayOfWeek={firstDayOfWeek}
         onSetDayTags={planner.setDayTags}
         onToggleLock={planner.toggleLock}
         onSetDayMeal={planner.setDayMeal}
+        onSetSideAt={planner.setDaySideAt}
+        onAddSideChip={planner.addSideChipToDay}
+        onRemoveSideChip={planner.removeSideChipFromDay}
         onAutoFill={planner.autoFillWeek}
         onRegenerateDay={planner.regenerateSingleDay}
         onClearWeek={planner.clearWeek}

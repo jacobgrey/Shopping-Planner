@@ -1,4 +1,4 @@
-import type { Meal, MasterIngredient, StoreCategory, CategoryItem } from "../types/meals";
+import type { Meal, MasterIngredient, StoreCategory, CategoryItem, Side } from "../types/meals";
 import type { WeekPlan } from "../types/planner";
 import { DAY_NAMES } from "../types/planner";
 import type { ShoppingItem } from "../types/shopping";
@@ -6,6 +6,7 @@ import type { ShoppingItem } from "../types/shopping";
 export function aggregateShoppingList(
   plan: WeekPlan,
   meals: Meal[],
+  sides: Side[],
   masterIngredients: MasterIngredient[],
   categoryItems: CategoryItem[]
 ): ShoppingItem[] {
@@ -75,6 +76,30 @@ export function aggregateShoppingList(
         meal.name,
         true
       );
+    }
+  }
+
+  // Add side ingredients
+  const sideMap = new Map<string, Side>();
+  for (const s of sides) sideMap.set(s.id, s);
+  for (const day of plan.days) {
+    if (!day.assignedSideIds || day.assignedSideIds.length === 0) continue;
+    for (const sideId of day.assignedSideIds) {
+      const side = sideMap.get(sideId);
+      if (!side) continue;
+      for (const entry of side.ingredients) {
+        const master = masterMap.get(entry.ingredientId);
+        if (!master) continue;
+        addItem(
+          master.name,
+          master.category,
+          entry.quantity,
+          master.defaultUnit,
+          master.pricePerUnit,
+          side.name,
+          true,
+        );
+      }
     }
   }
 

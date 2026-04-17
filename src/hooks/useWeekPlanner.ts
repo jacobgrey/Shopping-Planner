@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import type { WeekPlan, Deal, ManualItem } from "../types/planner";
-import type { Meal } from "../types/meals";
+import type { WeekPlan, Deal, ManualItem, DayPlan } from "../types/planner";
+import type { Meal, Side, MasterIngredient } from "../types/meals";
 import { readJson, writeJson } from "../lib/storage";
 import { selectMealsForWeek, regenerateDay } from "../lib/mealSelector";
+import { selectSidesForDay, selectSidesForWeek } from "../lib/sidesSelector";
 
 const PLAN_FILE = "current-week.json";
 const DEALS_FILE = "deals.json";
@@ -45,7 +46,12 @@ function createEmptyWeek(weekOf: string): WeekPlan {
   };
 }
 
-export function useWeekPlanner(meals: Meal[], firstDayOfWeek: number = 0) {
+export function useWeekPlanner(
+  meals: Meal[],
+  sides: Side[] = [],
+  masterIngredients: MasterIngredient[] = [],
+  firstDayOfWeek: number = 0,
+) {
   const [plan, setPlan] = useState<WeekPlan | null>(null);
   const [deals, setDeals] = useState<Deal[]>([]);
   const [recentlyUsed, setRecentlyUsed] = useState<string[]>([]);
@@ -168,42 +174,111 @@ export function useWeekPlanner(meals: Meal[], firstDayOfWeek: number = 0) {
     [savePlan]
   );
 
+  const rollSidesForDay = useCallback(
+    (day: DayPlan, meal: Meal | undefined, count: number, usedThisWeek: Set<string>): string[] => {
+      if (sides.length === 0) return [];
+      return selectSidesForDay(
+        day,
+        meal,
+        sides,
+        dealsRef.current,
+        count,
+        masterIngredients,
+        [],
+        usedThisWeek,
+      );
+    },
+    [sides, masterIngredients],
+  );
+
+  const usedSideIdsAcross = useCallback(
+    (days: DayPlan[], excludeDay: number): Set<string> => {
+      const used = new Set<string>();
+      for (const d of days) {
+        if (d.dayOfWeek === excludeDay) continue;
+        if (d.assignedSideIds) for (const id of d.assignedSideIds) used.add(id);
+      }
+      return used;
+    },
+    [],
+  );
+
   const setDayMeal = useCallback(
     async (dayOfWeek: number, mealId: string | undefined) => {
       const p = planRef.current;
       if (!p) return;
+      const prevDay = p.days.find((d) => d.dayOfWeek === dayOfWeek);
+      const slotCount = mealId ? prevDay?.sideSlotCount ?? 1 : undefined;
+      let newSideIds: string[] | undefined;
+      if (mealId && slotCount && slotCount > 0) {
+        const meal = meals.find((m) => m.id === mealId);
+        const day: DayPlan = prevDay
+          ? { ...prevDay, assignedMealId: mealId }
+          : { dayOfWeek, tags: [], locked: true };
+        newSideIds = rollSidesForDay(
+          day,
+          meal,
+          slotCount,
+          usedSideIdsAcross(p.days, dayOfWeek),
+        );
+      }
+
       const updated = {
         ...p,
         days: p.days.map((d) =>
           d.dayOfWeek === dayOfWeek
-            ? { ...d, assignedMealId: mealId, locked: !!mealId }
+            ? {
+                ...d,
+                assignedMealId: mealId,
+                locked: !!mealId,
+                assignedSideIds: mealId ? newSideIds ?? [] : [],
+                sideSlotCount: mealId ? d.sideSlotCount ?? 1 : 1,
+              }
             : d
         ),
       };
       await savePlan(updated);
     },
-    [savePlan]
+    [meals, rollSidesForDay, usedSideIdsAcross, savePlan]
   );
 
   const autoFillWeek = useCallback(async () => {
     const p = planRef.current;
     if (!p) return;
-    const assignments = selectMealsForWeek(
+    const mealAssignments = selectMealsForWeek(
       meals,
       p.days,
       dealsRef.current,
-      recentlyUsedRef.current
+      recentlyUsedRef.current,
+      masterIngredients,
     );
+
+    // Apply meal assignments first, then compute sides against the updated day array
+    // so each day's side pool reflects its (possibly new) meal.
+    const daysWithMeals = p.days.map((d) => {
+      if (d.locked) return d;
+      const mealId = mealAssignments.get(d.dayOfWeek);
+      return mealId ? { ...d, assignedMealId: mealId } : d;
+    });
+
+    const sideAssignments = selectSidesForWeek(
+      daysWithMeals,
+      meals,
+      sides,
+      dealsRef.current,
+      masterIngredients,
+    );
+
     const updated = {
       ...p,
-      days: p.days.map((d) => {
+      days: daysWithMeals.map((d) => {
         if (d.locked) return d;
-        const mealId = assignments.get(d.dayOfWeek);
-        return mealId ? { ...d, assignedMealId: mealId } : d;
+        const sideIds = sideAssignments.get(d.dayOfWeek);
+        return sideIds ? { ...d, assignedSideIds: sideIds } : d;
       }),
     };
     await savePlan(updated);
-  }, [meals, savePlan]);
+  }, [meals, sides, masterIngredients, savePlan]);
 
   const regenerateSingleDay = useCallback(
     async (dayOfWeek: number) => {
@@ -216,21 +291,37 @@ export function useWeekPlanner(meals: Meal[], firstDayOfWeek: number = 0) {
         day,
         p.days,
         dealsRef.current,
-        recentlyUsedRef.current
+        recentlyUsedRef.current,
+        masterIngredients,
       );
-      if (newMealId) {
-        const updated = {
-          ...p,
-          days: p.days.map((d) =>
-            d.dayOfWeek === dayOfWeek
-              ? { ...d, assignedMealId: newMealId, locked: false }
-              : d
-          ),
-        };
-        await savePlan(updated);
-      }
+
+      const slotCount = day.sideSlotCount ?? 1;
+      const updatedDay: DayPlan = {
+        ...day,
+        assignedMealId: newMealId ?? day.assignedMealId,
+        locked: false,
+      };
+      const meal = updatedDay.assignedMealId
+        ? meals.find((m) => m.id === updatedDay.assignedMealId)
+        : undefined;
+      const newSideIds = rollSidesForDay(
+        updatedDay,
+        meal,
+        slotCount,
+        usedSideIdsAcross(p.days, dayOfWeek),
+      );
+
+      const updated = {
+        ...p,
+        days: p.days.map((d) =>
+          d.dayOfWeek === dayOfWeek
+            ? { ...updatedDay, assignedSideIds: newSideIds }
+            : d
+        ),
+      };
+      await savePlan(updated);
     },
-    [meals, savePlan]
+    [meals, masterIngredients, rollSidesForDay, usedSideIdsAcross, savePlan]
   );
 
   const clearWeek = useCallback(async () => {
@@ -246,6 +337,8 @@ export function useWeekPlanner(meals: Meal[], firstDayOfWeek: number = 0) {
       days: p.days.map((d) => ({
         ...d,
         assignedMealId: undefined,
+        assignedSideIds: [],
+        sideSlotCount: 1,
         locked: false,
         manualItems: [],
       })),
@@ -269,6 +362,8 @@ export function useWeekPlanner(meals: Meal[], firstDayOfWeek: number = 0) {
       days: p.days.map((d) => ({
         ...d,
         assignedMealId: undefined,
+        assignedSideIds: [],
+        sideSlotCount: 1,
         locked: false,
         tags: [],
         manualItems: [],
@@ -283,6 +378,126 @@ export function useWeekPlanner(meals: Meal[], firstDayOfWeek: number = 0) {
     await savePlan(updated);
     await saveDeals([]);
   }, [savePlan, saveDeals]);
+
+  const setDaySides = useCallback(
+    async (dayOfWeek: number, sideIds: string[]) => {
+      const p = planRef.current;
+      if (!p) return;
+      const updated = {
+        ...p,
+        days: p.days.map((d) =>
+          d.dayOfWeek === dayOfWeek
+            ? {
+                ...d,
+                assignedSideIds: sideIds,
+                sideSlotCount: Math.max(sideIds.length, d.sideSlotCount ?? 1),
+              }
+            : d,
+        ),
+      };
+      await savePlan(updated);
+    },
+    [savePlan],
+  );
+
+  const setDaySideSlotCount = useCallback(
+    async (dayOfWeek: number, count: number) => {
+      const p = planRef.current;
+      if (!p) return;
+      const safeCount = Math.max(0, Math.floor(count));
+      const updated = {
+        ...p,
+        days: p.days.map((d) => {
+          if (d.dayOfWeek !== dayOfWeek) return d;
+          const trimmed = (d.assignedSideIds ?? []).slice(0, safeCount);
+          return { ...d, sideSlotCount: safeCount, assignedSideIds: trimmed };
+        }),
+      };
+      await savePlan(updated);
+    },
+    [savePlan],
+  );
+
+  const addSideChipToDay = useCallback(
+    async (dayOfWeek: number) => {
+      const p = planRef.current;
+      if (!p) return;
+      const day = p.days.find((d) => d.dayOfWeek === dayOfWeek);
+      if (!day) return;
+      const meal = day.assignedMealId
+        ? meals.find((m) => m.id === day.assignedMealId)
+        : undefined;
+      const existing = day.assignedSideIds ?? [];
+      const [rolled] = selectSidesForDay(
+        day,
+        meal,
+        sides,
+        dealsRef.current,
+        1,
+        masterIngredients,
+        existing,
+        usedSideIdsAcross(p.days, dayOfWeek),
+      );
+      if (!rolled) return; // Nothing to add (library exhausted for this meal's pool).
+      const newSides = [...existing, rolled];
+      // Invariant: sideSlotCount reflects the number of visible chips. Without this,
+      // a day that started with 0 chips would end up with slotCount=2 after one click,
+      // causing the next regenerate to try to pick two sides instead of one.
+      const newSlotCount = newSides.length;
+      const updated = {
+        ...p,
+        days: p.days.map((d) =>
+          d.dayOfWeek === dayOfWeek
+            ? { ...d, assignedSideIds: newSides, sideSlotCount: newSlotCount }
+            : d,
+        ),
+      };
+      await savePlan(updated);
+    },
+    [sides, meals, masterIngredients, usedSideIdsAcross, savePlan],
+  );
+
+  const removeSideChipFromDay = useCallback(
+    async (dayOfWeek: number, chipIndex: number) => {
+      const p = planRef.current;
+      if (!p) return;
+      const day = p.days.find((d) => d.dayOfWeek === dayOfWeek);
+      if (!day) return;
+      const existing = day.assignedSideIds ?? [];
+      const newSides = existing.filter((_, i) => i !== chipIndex);
+      const newSlotCount = newSides.length;
+      const updated = {
+        ...p,
+        days: p.days.map((d) =>
+          d.dayOfWeek === dayOfWeek
+            ? { ...d, assignedSideIds: newSides, sideSlotCount: newSlotCount }
+            : d,
+        ),
+      };
+      await savePlan(updated);
+    },
+    [savePlan],
+  );
+
+  const setDaySideAt = useCallback(
+    async (dayOfWeek: number, chipIndex: number, sideId: string) => {
+      const p = planRef.current;
+      if (!p) return;
+      const day = p.days.find((d) => d.dayOfWeek === dayOfWeek);
+      if (!day) return;
+      const existing = day.assignedSideIds ?? [];
+      const newSides = [...existing];
+      newSides[chipIndex] = sideId;
+      const updated = {
+        ...p,
+        days: p.days.map((d) =>
+          d.dayOfWeek === dayOfWeek ? { ...d, assignedSideIds: newSides } : d,
+        ),
+      };
+      await savePlan(updated);
+    },
+    [savePlan],
+  );
 
   const setCategorySelections = useCallback(
     async (
@@ -367,6 +582,11 @@ export function useWeekPlanner(meals: Meal[], firstDayOfWeek: number = 0) {
     regenerateSingleDay,
     clearWeek,
     resetAll,
+    setDaySides,
+    setDaySideSlotCount,
+    addSideChipToDay,
+    removeSideChipFromDay,
+    setDaySideAt,
     setCategorySelections,
     setOtherNotes,
     setDayManualItems,

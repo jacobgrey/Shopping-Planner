@@ -1,30 +1,26 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import type { Meal, MealDefinition, MasterIngredient, TagDefinition, StoreCategory, Side } from "../../types/meals";
+import type { Side, SideDefinition, MasterIngredient, StoreCategory } from "../../types/meals";
 import { STORE_CATEGORIES } from "../../types/meals";
-import TagBadge from "../common/TagBadge";
 import NoteText from "../common/NoteText";
-import MealImagePanel from "./MealImagePanel";
+import MealImagePanel from "../MealLibrary/MealImagePanel";
 import ConfirmDialog from "../common/ConfirmDialog";
 import Toast from "../common/Toast";
 import { openExternal } from "../../lib/openExternal";
 import { loadImageAsDataUrl } from "../../lib/mealImages";
 
 type SectionId = "info" | "recipe-ingredients" | "nutrition";
-
 const SECTION_ORDER: SectionId[] = ["info", "recipe-ingredients", "nutrition"];
 
-interface MealDetailsProps {
-  meal: Meal;
+interface SideDetailsProps {
+  side: Side;
   masterIngredients: MasterIngredient[];
-  availableTags: TagDefinition[];
-  availableSides: Side[];
   imageSrc?: string;
-  onUpdate: (id: string, def: Partial<MealDefinition>) => Promise<void>;
+  onUpdate: (id: string, def: Partial<SideDefinition>) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   onBack: () => void;
   onAddMasterIngredient: (def: Omit<MasterIngredient, "id">) => Promise<MasterIngredient>;
-  onImageSaved: (mealId: string, filename: string) => void;
-  onImageRemoved: (mealId: string) => void;
+  onImageSaved: (id: string, filename: string) => void;
+  onImageRemoved: (id: string) => void;
 }
 
 interface EditableIngredient {
@@ -32,11 +28,9 @@ interface EditableIngredient {
   quantity?: number;
 }
 
-export default function MealDetails({
-  meal,
+export default function SideDetails({
+  side,
   masterIngredients,
-  availableTags,
-  availableSides,
   imageSrc,
   onUpdate,
   onDelete,
@@ -44,29 +38,23 @@ export default function MealDetails({
   onAddMasterIngredient,
   onImageSaved,
   onImageRemoved,
-}: MealDetailsProps) {
-  const isNewMeal = !meal.name;
+}: SideDetailsProps) {
+  const isNew = !side.name;
 
-  // Per-section edit state
   const [editingSections, setEditingSections] = useState<Set<SectionId>>(() =>
-    isNewMeal ? new Set(SECTION_ORDER) : new Set()
+    isNew ? new Set(SECTION_ORDER) : new Set(),
   );
 
-  // Local edit state for all fields
-  const [name, setName] = useState(meal.name);
-  const [preferredSideIds, setPreferredSideIds] = useState<string[]>(meal.preferredSideIds ?? []);
-  const [sideSearch, setSideSearch] = useState("");
-  const [tags, setTags] = useState<string[]>(meal.tags);
-  const [prepTimeHours, setPrepTimeHours] = useState(meal.prepTimeHours?.toString() || "");
-  const [startTimeHours, setStartTimeHours] = useState(meal.startTimeHours?.toString() || "");
-  const [recipeUrl, setRecipeUrl] = useState(meal.recipeUrl || "");
-  const [notes, setNotes] = useState(meal.notes || "");
-  const [nutrition, setNutrition] = useState(meal.nutrition || "");
+  const [name, setName] = useState(side.name);
+  const [prepTimeHours, setPrepTimeHours] = useState(side.prepTimeHours?.toString() || "");
+  const [startTimeHours, setStartTimeHours] = useState(side.startTimeHours?.toString() || "");
+  const [recipeUrl, setRecipeUrl] = useState(side.recipeUrl || "");
+  const [notes, setNotes] = useState(side.notes || "");
+  const [nutrition, setNutrition] = useState(side.nutrition || "");
   const [ingredients, setIngredients] = useState<EditableIngredient[]>(
-    meal.ingredients?.length ? [...meal.ingredients] : []
+    side.ingredients?.length ? [...side.ingredients] : [],
   );
 
-  // Ingredient search/create state
   const [searchQuery, setSearchQuery] = useState("");
   const [showNewIngForm, setShowNewIngForm] = useState(false);
   const [newIngName, setNewIngName] = useState("");
@@ -74,46 +62,35 @@ export default function MealDetails({
   const [newIngUnit, setNewIngUnit] = useState("");
   const [newIngPrice, setNewIngPrice] = useState("");
 
-  // Delete confirmation
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-
-  // Toast
   const [toast, setToast] = useState<{ message: string; type: "error" | "success" | "info" } | null>(null);
 
-  // Focus name input on new meal
   const nameInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
-    if (isNewMeal) {
-      nameInputRef.current?.focus();
-    }
-  }, [isNewMeal]);
+    if (isNew) nameInputRef.current?.focus();
+  }, [isNew]);
 
-  // The parent's images Map holds thumbnails — load the full-res image on open so
-  // the detail banner looks sharp. Shows the thumbnail first, swaps in the full when ready.
   const [fullImageSrc, setFullImageSrc] = useState<string | null>(null);
   useEffect(() => {
-    if (!meal.imageFilename) {
+    if (!side.imageFilename) {
       setFullImageSrc(null);
       return;
     }
     let cancelled = false;
-    loadImageAsDataUrl(meal.imageFilename).then((url) => {
+    loadImageAsDataUrl(side.imageFilename).then((url) => {
       if (!cancelled) setFullImageSrc(url);
     });
     return () => {
       cancelled = true;
     };
-  }, [meal.imageFilename]);
+  }, [side.imageFilename]);
   const displayImageSrc = fullImageSrc ?? imageSrc;
 
   const toggleSection = useCallback((section: SectionId) => {
     setEditingSections((prev) => {
       const next = new Set(prev);
-      if (next.has(section)) {
-        next.delete(section);
-      } else {
-        next.add(section);
-      }
+      if (next.has(section)) next.delete(section);
+      else next.add(section);
       return next;
     });
   }, []);
@@ -122,14 +99,12 @@ export default function MealDetails({
     return masterIngredients.find((m) => m.id === id);
   }
 
-  // Build current meal definition from local state
-  function buildDef(): Partial<MealDefinition> {
+  function buildDef(): Partial<SideDefinition> {
     return {
       name: name.trim(),
-      sides: undefined, // legacy field, no longer written
-      preferredSideIds,
+      // Tags UX is deferred — keep the field as [] so the type stays stable.
+      tags: [],
       ingredients: ingredients.filter((i) => i.ingredientId),
-      tags,
       prepTimeHours: prepTimeHours ? parseFloat(prepTimeHours) : undefined,
       startTimeHours: startTimeHours ? parseFloat(startTimeHours) : undefined,
       recipeUrl: recipeUrl.trim() || undefined,
@@ -141,35 +116,29 @@ export default function MealDetails({
   async function handleBack() {
     try {
       if (!name.trim()) {
-        // No name entered — delete the blank meal instead of saving it
-        await onDelete(meal.id);
+        await onDelete(side.id);
       } else {
-        await onUpdate(meal.id, buildDef());
+        await onUpdate(side.id, buildDef());
       }
     } catch (e) {
-      console.error("Failed to save meal:", e);
+      console.error("Failed to save side:", e);
       setToast({ message: "Failed to save changes", type: "error" });
-      return; // Don't navigate away if save failed
+      return;
     }
     onBack();
   }
 
   async function handleDelete() {
-    await onDelete(meal.id);
+    await onDelete(side.id);
     onBack();
   }
 
-  // Ingredient helpers
   function updateIngredient(index: number, updates: Partial<EditableIngredient>) {
-    setIngredients((prev) =>
-      prev.map((ing, i) => (i === index ? { ...ing, ...updates } : ing))
-    );
+    setIngredients((prev) => prev.map((ing, i) => (i === index ? { ...ing, ...updates } : ing)));
   }
-
   function removeIngredient(index: number) {
     setIngredients((prev) => prev.filter((_, i) => i !== index));
   }
-
   function addIngredientFromMaster(master: MasterIngredient) {
     setIngredients((prev) => [...prev, { ingredientId: master.id }]);
     setSearchQuery("");
@@ -191,20 +160,13 @@ export default function MealDetails({
     setNewIngPrice("");
   }
 
-  function toggleTag(tagId: string) {
-    setTags((prev) =>
-      prev.includes(tagId) ? prev.filter((t) => t !== tagId) : [...prev, tagId]
-    );
-  }
-
   const usedIngredientIds = new Set(ingredients.map((i) => i.ingredientId));
   const filteredMaster = masterIngredients.filter(
     (m) =>
       !usedIngredientIds.has(m.id) &&
-      (!searchQuery || m.name.toLowerCase().includes(searchQuery.toLowerCase()))
+      (!searchQuery || m.name.toLowerCase().includes(searchQuery.toLowerCase())),
   );
 
-  // Section edit toggle button
   function EditToggle({ section }: { section: SectionId }) {
     const isEditing = editingSections.has(section);
     return (
@@ -218,144 +180,27 @@ export default function MealDetails({
     );
   }
 
-  // --- Section renderers ---
-
   function renderInfoSection() {
     const editing = editingSections.has("info");
     return (
       <div className="space-y-3">
-        {/* Name */}
         {editing ? (
           <input
             ref={nameInputRef}
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Meal name"
+            placeholder="Side name"
             className="w-full text-2xl font-bold text-gray-800 px-2 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         ) : (
           <h1 className="text-2xl font-bold text-gray-800">
-            {name || <span className="italic text-gray-400">Untitled Meal</span>}
+            {name || <span className="italic text-gray-400">Untitled Side</span>}
           </h1>
         )}
 
-        {/* Preferred Sides */}
-        {editing ? (
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Preferred sides</label>
-            <p className="text-[11px] text-gray-400 mb-2">
-              Sides that go well with this meal. The planner draws from this list when
-              auto-selecting sides for the day.
-            </p>
-            {preferredSideIds.length > 0 && (
-              <div className="flex flex-wrap gap-1 mb-2">
-                {preferredSideIds.map((id) => {
-                  const side = availableSides.find((s) => s.id === id);
-                  if (!side) return null;
-                  return (
-                    <span
-                      key={id}
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-blue-50 text-blue-700 border border-blue-200"
-                    >
-                      {side.name}
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setPreferredSideIds((prev) => prev.filter((sid) => sid !== id))
-                        }
-                        className="text-blue-400 hover:text-blue-700"
-                        title="Remove"
-                      >
-                        &times;
-                      </button>
-                    </span>
-                  );
-                })}
-              </div>
-            )}
-            <input
-              type="text"
-              value={sideSearch}
-              onChange={(e) => setSideSearch(e.target.value)}
-              placeholder="Search sides to add..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            {sideSearch && (
-              <div className="mt-1 max-h-40 overflow-y-auto border border-gray-200 rounded bg-white">
-                {(() => {
-                  const q = sideSearch.toLowerCase();
-                  const matches = availableSides
-                    .filter(
-                      (s) =>
-                        !preferredSideIds.includes(s.id) &&
-                        s.name.toLowerCase().includes(q),
-                    )
-                    .slice(0, 20);
-                  if (matches.length === 0) {
-                    return (
-                      <p className="px-3 py-2 text-xs text-gray-400 italic">
-                        No matches. Create sides in the Sides tab first.
-                      </p>
-                    );
-                  }
-                  return matches.map((s) => (
-                    <button
-                      key={s.id}
-                      type="button"
-                      onClick={() => {
-                        setPreferredSideIds((prev) => [...prev, s.id]);
-                        setSideSearch("");
-                      }}
-                      className="block w-full text-left px-3 py-1.5 text-sm hover:bg-blue-50"
-                    >
-                      {s.name}
-                    </button>
-                  ));
-                })()}
-              </div>
-            )}
-          </div>
-        ) : preferredSideIds.length > 0 ? (
-          <p className="text-sm text-gray-600">
-            Preferred sides:{" "}
-            {preferredSideIds
-              .map((id) => availableSides.find((s) => s.id === id)?.name)
-              .filter(Boolean)
-              .join(", ")}
-          </p>
-        ) : null}
+        {/* Tag picker deferred — no UI here yet. */}
 
-        {/* Tags */}
-        {editing ? (
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Tags</label>
-            <div className="flex flex-wrap gap-2">
-              {availableTags.map((tag) => (
-                <button
-                  key={tag.id}
-                  type="button"
-                  onClick={() => toggleTag(tag.id)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium border transition ${
-                    tags.includes(tag.id)
-                      ? "border-blue-500 bg-blue-50 text-blue-700"
-                      : "border-gray-300 bg-white text-gray-600 hover:bg-gray-50"
-                  }`}
-                >
-                  {tag.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        ) : tags.length > 0 ? (
-          <div className="flex flex-wrap gap-1">
-            {tags.map((tag) => (
-              <TagBadge key={tag} tag={tag} allTags={availableTags} />
-            ))}
-          </div>
-        ) : null}
-
-        {/* Prep & Start time */}
         {editing ? (
           <div className="flex gap-4">
             <div>
@@ -366,7 +211,7 @@ export default function MealDetails({
                 onChange={(e) => setPrepTimeHours(e.target.value)}
                 min={0}
                 step="0.25"
-                placeholder="e.g. 0.5"
+                placeholder="e.g. 0.25"
                 className="w-32 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -378,7 +223,6 @@ export default function MealDetails({
                 onChange={(e) => setStartTimeHours(e.target.value)}
                 min={0}
                 step="0.25"
-                placeholder="e.g. 5"
                 className="w-32 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <p className="text-[10px] text-gray-400 mt-0.5">How far before dinner to start</p>
@@ -392,7 +236,6 @@ export default function MealDetails({
           </p>
         ) : null}
 
-        {/* Recipe URL */}
         {editing ? (
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Recipe URL</label>
@@ -408,10 +251,19 @@ export default function MealDetails({
           <p className="text-sm">
             <a
               href={recipeUrl}
-              onClick={(e) => { e.preventDefault(); openExternal(recipeUrl); }}
+              onClick={(e) => {
+                e.preventDefault();
+                openExternal(recipeUrl);
+              }}
               className="text-blue-600 hover:text-blue-800 underline cursor-pointer"
             >
-              {(() => { try { return new URL(recipeUrl).hostname.replace(/^www\./, ""); } catch { return "Recipe link"; } })()}
+              {(() => {
+                try {
+                  return new URL(recipeUrl).hostname.replace(/^www\./, "");
+                } catch {
+                  return "Recipe link";
+                }
+              })()}
             </a>
           </p>
         ) : null}
@@ -423,7 +275,6 @@ export default function MealDetails({
     const editing = editingSections.has("recipe-ingredients");
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Left: Recipe (notes) */}
         <div>
           <h3 className="text-sm font-semibold text-gray-700 mb-2">Recipe</h3>
           {editing ? (
@@ -443,7 +294,6 @@ export default function MealDetails({
           )}
         </div>
 
-        {/* Right: Ingredients */}
         <div>
           <h3 className="text-sm font-semibold text-gray-700 mb-2">
             Ingredients
@@ -484,7 +334,6 @@ export default function MealDetails({
                 );
               })}
 
-              {/* Search to add */}
               <div className="mt-3">
                 <input
                   type="text"
@@ -536,7 +385,6 @@ export default function MealDetails({
                 </button>
               </div>
 
-              {/* New ingredient form */}
               {showNewIngForm && (
                 <div className="mt-2 p-3 border border-blue-200 bg-blue-50 rounded-lg space-y-2">
                   <p className="text-xs font-medium text-blue-700">Add to Master Ingredient List</p>
@@ -554,7 +402,9 @@ export default function MealDetails({
                       className="px-2 py-1 border border-gray-300 rounded text-sm"
                     >
                       {STORE_CATEGORIES.map((cat) => (
-                        <option key={cat} value={cat}>{cat.replace(/-/g, " ")}</option>
+                        <option key={cat} value={cat}>
+                          {cat.replace(/-/g, " ")}
+                        </option>
                       ))}
                     </select>
                     <input
@@ -657,22 +507,20 @@ export default function MealDetails({
 
   return (
     <div className="max-w-4xl mx-auto">
-      {/* Image Banner */}
       <div className="relative h-[250px] -mx-6 -mt-6 mb-6 bg-gray-200 overflow-hidden">
         {displayImageSrc ? (
           <>
             <img
               src={displayImageSrc}
-              alt={name || "Meal image"}
+              alt={name || "Side image"}
               className="absolute inset-0 w-full h-full object-cover"
             />
-            {/* Overlay for context menu actions */}
             <div className="absolute inset-0 z-[1]">
               <MealImagePanel
-                mealId={meal.id}
-                mealName={name || meal.name || "New Meal"}
+                mealId={side.id}
+                mealName={name || side.name || "New Side"}
                 recipeUrl={recipeUrl || undefined}
-                imageFilename={meal.imageFilename}
+                imageFilename={side.imageFilename}
                 imageSrc={displayImageSrc}
                 onImageSaved={onImageSaved}
                 onImageRemoved={onImageRemoved}
@@ -683,10 +531,10 @@ export default function MealDetails({
         ) : (
           <div className="absolute inset-0 bg-gradient-to-br from-gray-300 to-gray-400 flex items-center justify-center">
             <MealImagePanel
-              mealId={meal.id}
-              mealName={name || meal.name || "New Meal"}
+              mealId={side.id}
+              mealName={name || side.name || "New Side"}
               recipeUrl={recipeUrl || undefined}
-              imageFilename={meal.imageFilename}
+              imageFilename={side.imageFilename}
               imageSrc={undefined}
               onImageSaved={onImageSaved}
               onImageRemoved={onImageRemoved}
@@ -695,7 +543,6 @@ export default function MealDetails({
           </div>
         )}
 
-        {/* Back button */}
         <button
           onClick={handleBack}
           className="absolute top-4 left-4 z-10 w-10 h-10 flex items-center justify-center bg-white/80 hover:bg-white rounded-full shadow text-gray-700 hover:text-gray-900 transition"
@@ -707,7 +554,6 @@ export default function MealDetails({
         </button>
       </div>
 
-      {/* Sections */}
       <div className="space-y-6">
         {SECTION_ORDER.map((sectionId) => {
           const renderer = SECTION_RENDERERS[sectionId];
@@ -735,20 +581,18 @@ export default function MealDetails({
         })}
       </div>
 
-      {/* Delete button */}
       <div className="mt-8 mb-4 pt-6 border-t border-gray-200">
         <button
           onClick={() => setShowDeleteConfirm(true)}
           className="px-4 py-2 text-sm font-medium text-red-600 bg-white border border-red-300 rounded-lg hover:bg-red-50 transition"
         >
-          Delete Meal
+          Delete Side
         </button>
       </div>
 
-      {/* Delete confirmation dialog */}
       {showDeleteConfirm && (
         <ConfirmDialog
-          message={`Are you sure you want to delete "${name || "this meal"}"? This cannot be undone.`}
+          message={`Are you sure you want to delete "${name || "this side"}"? This cannot be undone.`}
           onConfirm={handleDelete}
           onCancel={() => setShowDeleteConfirm(false)}
           confirmLabel="Delete"
@@ -756,9 +600,7 @@ export default function MealDetails({
         />
       )}
 
-      {toast && (
-        <Toast message={toast.message} type={toast.type} onDone={() => setToast(null)} />
-      )}
+      {toast && <Toast message={toast.message} type={toast.type} onDone={() => setToast(null)} />}
     </div>
   );
 }

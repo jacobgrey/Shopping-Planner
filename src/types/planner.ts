@@ -10,6 +10,8 @@ export interface DayPlan {
   dayOfWeek: number; // 0=Monday, 6=Sunday
   tags: string[];
   assignedMealId?: string;
+  assignedSideIds?: string[]; // filled side slots for the day
+  sideSlotCount?: number; // total chips (defaults to 1). Regenerate respects this count.
   locked: boolean;
   manualItems?: ManualItem[];
 }

@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
-import type { Meal, MasterIngredient, CategoryItem } from "../types/meals";
+import type { Meal, Side, MasterIngredient, CategoryItem } from "../types/meals";
 import type { WeekPlan } from "../types/planner";
 import type { ShoppingItem, ShoppingListSort } from "../types/shopping";
 import { aggregateShoppingList } from "../lib/shoppingAggregator";
@@ -8,6 +8,7 @@ import { STORE_CATEGORY_ORDER } from "../data/store-categories";
 export function useShoppingList(
   plan: WeekPlan | null,
   meals: Meal[],
+  sides: Side[],
   masterIngredients: MasterIngredient[],
   categoryItems: CategoryItem[]
 ) {
@@ -16,12 +17,12 @@ export function useShoppingList(
 
   const items = useMemo<ShoppingItem[]>(() => {
     if (!plan) return [];
-    const list = aggregateShoppingList(plan, meals, masterIngredients, categoryItems);
+    const list = aggregateShoppingList(plan, meals, sides, masterIngredients, categoryItems);
     return list.map((item) => ({
       ...item,
       checked: !uncheckedItems.has(item.ingredientName.toLowerCase()),
     }));
-  }, [plan, meals, masterIngredients, categoryItems, uncheckedItems]);
+  }, [plan, meals, sides, masterIngredients, categoryItems, uncheckedItems]);
 
   const sortedItems = useMemo(() => {
     const sorted = [...items];

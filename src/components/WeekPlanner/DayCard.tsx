@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import type { DayPlan, ManualItem } from "../../types/planner";
-import type { Meal, TagDefinition, MasterIngredient } from "../../types/meals";
+import type { Meal, Side, TagDefinition, MasterIngredient } from "../../types/meals";
 import { DAY_NAMES } from "../../types/planner";
 import TagBadge from "../common/TagBadge";
 import TagSelector from "./TagSelector";
@@ -9,16 +9,21 @@ import { QRCodeSVG } from "qrcode.react";
 import { buildCalendarEvent } from "../../lib/calendarUrl";
 import { CARD_BORDER } from "../../lib/theme";
 import ManualItemChips from "../common/ManualItemChips";
+import SidePicker from "./SidePicker";
 
 interface DayCardProps {
   day: DayPlan;
   meal: Meal | undefined;
   allMeals: Meal[];
+  allSides: Side[];
   availableTags: TagDefinition[];
   onTagsChange: (tags: string[]) => void;
   onToggleLock: () => void;
   onRegenerate: () => void;
   onSetMeal: (mealId: string | undefined) => void;
+  onSetSideAt: (chipIndex: number, sideId: string) => void;
+  onAddSideChip: () => void;
+  onRemoveSideChip: (chipIndex: number) => void;
   cardView: "normal" | "qr" | "image";
   dinnerTime?: string;
   weekOf?: string;
@@ -32,11 +37,15 @@ export default function DayCard({
   day,
   meal,
   allMeals,
+  allSides,
   availableTags,
   onTagsChange,
   onToggleLock,
   onRegenerate,
   onSetMeal,
+  onSetSideAt,
+  onAddSideChip,
+  onRemoveSideChip,
   cardView,
   dinnerTime,
   weekOf,
@@ -48,7 +57,12 @@ export default function DayCard({
   const [showTagPicker, setShowTagPicker] = useState(false);
   const [showMealPicker, setShowMealPicker] = useState(false);
   const [pickerSearch, setPickerSearch] = useState("");
+  const [openSidePickerIdx, setOpenSidePickerIdx] = useState<number | null>(null);
   const pickerRef = useRef<HTMLDivElement>(null);
+
+  // Resolve assigned side IDs into Side objects (skip missing ones gracefully)
+  const assignedSideIds = day.assignedSideIds ?? [];
+  const sideLookup = (id: string) => allSides.find((s) => s.id === id);
 
   // Close picker on click outside
   useEffect(() => {
@@ -207,11 +221,65 @@ export default function DayCard({
         ) : meal ? (
           <div>
             <p className="text-sm font-medium text-gray-800">{meal.name}</p>
-            {meal.sides && meal.sides.length > 0 && (
-              <p className="text-xs text-gray-500">
-                + {meal.sides.join(", ")}
-              </p>
-            )}
+            <div className="flex flex-wrap items-center gap-1 mt-1">
+              {assignedSideIds.map((sideId, idx) => {
+                const side = sideLookup(sideId);
+                return (
+                  <span
+                    key={`${sideId}-${idx}`}
+                    className="relative inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] bg-gray-100 text-gray-700 border border-gray-200"
+                  >
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenSidePickerIdx(openSidePickerIdx === idx ? null : idx);
+                      }}
+                      className="hover:text-blue-700"
+                      title="Change side"
+                    >
+                      {side?.name ?? "(missing)"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onRemoveSideChip(idx);
+                        if (openSidePickerIdx === idx) setOpenSidePickerIdx(null);
+                      }}
+                      className="text-gray-400 hover:text-red-500 leading-none"
+                      title="Remove"
+                    >
+                      &times;
+                    </button>
+                    {openSidePickerIdx === idx && (
+                      <SidePicker
+                        sides={allSides}
+                        meal={meal}
+                        currentSideId={sideId}
+                        onPick={(newId) => {
+                          onSetSideAt(idx, newId);
+                          setOpenSidePickerIdx(null);
+                        }}
+                        onClose={() => setOpenSidePickerIdx(null)}
+                      />
+                    )}
+                  </span>
+                );
+              })}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAddSideChip();
+                }}
+                className="inline-flex items-center justify-center w-5 h-5 rounded-full border border-dashed border-gray-300 text-gray-400 hover:text-blue-600 hover:border-blue-400 text-xs leading-none"
+                title="Add side"
+                disabled={allSides.length === 0}
+              >
+                +
+              </button>
+            </div>
             {meal.notes && (
               <p className="text-[10px] text-gray-400 mt-0.5 line-clamp-2">
                 <NoteText text={meal.notes} className="text-[10px] text-gray-400" />
@@ -281,24 +349,29 @@ export default function DayCard({
               {filteredMeals.length === 0 ? (
                 <p className="px-2 py-2 text-xs text-gray-400">No matching meals</p>
               ) : (
-                filteredMeals.map((m) => (
-                  <button
-                    key={m.id}
-                    onClick={() => {
-                      onSetMeal(m.id);
-                      setShowMealPicker(false);
-                      setPickerSearch("");
-                    }}
-                    className={`block w-full text-left px-2 py-1.5 text-xs hover:bg-blue-50 ${
-                      meal?.id === m.id ? "bg-blue-50 font-medium" : ""
-                    }`}
-                  >
-                    {m.name}
-                    {m.sides && m.sides.length > 0 && (
-                      <span className="text-gray-400 ml-1">+ {m.sides.join(", ")}</span>
-                    )}
-                  </button>
-                ))
+                filteredMeals.map((m) => {
+                  const preferredNames = (m.preferredSideIds ?? [])
+                    .map((sid) => allSides.find((s) => s.id === sid)?.name)
+                    .filter(Boolean) as string[];
+                  return (
+                    <button
+                      key={m.id}
+                      onClick={() => {
+                        onSetMeal(m.id);
+                        setShowMealPicker(false);
+                        setPickerSearch("");
+                      }}
+                      className={`block w-full text-left px-2 py-1.5 text-xs hover:bg-blue-50 ${
+                        meal?.id === m.id ? "bg-blue-50 font-medium" : ""
+                      }`}
+                    >
+                      {m.name}
+                      {preferredNames.length > 0 && (
+                        <span className="text-gray-400 ml-1">+ {preferredNames.join(", ")}</span>
+                      )}
+                    </button>
+                  );
+                })
               )}
             </div>
           </div>

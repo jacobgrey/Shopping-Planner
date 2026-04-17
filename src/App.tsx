@@ -9,18 +9,21 @@ import {
 } from "./lib/dataDirectory";
 import { setStorageDirectory, readJson } from "./lib/storage";
 import { useMealLibrary } from "./hooks/useMealLibrary";
+import { useSidesLibrary } from "./hooks/useSidesLibrary";
 import { useIngredients } from "./hooks/useIngredients";
 import { useCategoryItems } from "./hooks/useCategoryItems";
 import { useTags } from "./hooks/useTags";
 import { useSettings } from "./hooks/useSettings";
 import type { WeekPlan } from "./types/planner";
+import { migrateLegacySides } from "./lib/sidesMigration";
 import TabNav from "./components/common/TabNav";
 import MealLibrary from "./components/MealLibrary/MealLibrary";
+import SidesLibrary from "./components/SidesLibrary/SidesLibrary";
 import PlannerPage from "./components/WeekPlanner/PlannerPage";
 import ShoppingList from "./components/ShoppingList/ShoppingList";
 import Settings from "./components/Settings/Settings";
 
-type Tab = "meals" | "planner" | "shopping" | "settings";
+type Tab = "meals" | "sides" | "planner" | "shopping" | "settings";
 
 // Fix #8: Error boundary to prevent white-screen crashes
 class ErrorBoundary extends Component<
@@ -152,6 +155,7 @@ function MainApp({
 }) {
   // Single source of truth for all shared state
   const mealLib = useMealLibrary();
+  const sidesLib = useSidesLibrary();
   const ingredientLib = useIngredients();
   const tagLib = useTags();
   const catItemLib = useCategoryItems();
@@ -166,6 +170,49 @@ function MainApp({
       });
     }
   }, [activeTab]);
+
+  // One-time startup: convert legacy `meal.sides: string[]` to Side entries + preferredSideIds,
+  // and prune any preferredSideIds that reference sides which no longer exist (e.g. after a
+  // Side was deleted). Both passes share an effect because they both require meals + sides loaded.
+  const sidesSyncDone = useRef(false);
+  useEffect(() => {
+    if (sidesSyncDone.current || !mealLib.loaded || !sidesLib.loaded) return;
+    sidesSyncDone.current = true;
+
+    (async () => {
+      try {
+        // Pass 1: legacy sides migration.
+        const { newSides, updatedMeals, didMigrate } = migrateLegacySides(
+          mealLib.meals,
+          sidesLib.sides,
+        );
+        if (didMigrate) {
+          await sidesLib.saveSides(newSides);
+          // Single batched write — one atomic save instead of one-per-meal.
+          await mealLib.saveMeals(updatedMeals);
+        }
+
+        // Pass 2: prune meals' preferredSideIds that reference deleted sides.
+        // Uses the post-migration state so the two passes don't step on each other.
+        const currentMeals = didMigrate ? updatedMeals : mealLib.meals;
+        const currentSides = didMigrate ? newSides : sidesLib.sides;
+        const validSideIds = new Set(currentSides.map((s) => s.id));
+        let prunedAny = false;
+        const pruned = currentMeals.map((meal) => {
+          if (!meal.preferredSideIds || meal.preferredSideIds.length === 0) return meal;
+          const kept = meal.preferredSideIds.filter((id) => validSideIds.has(id));
+          if (kept.length === meal.preferredSideIds.length) return meal;
+          prunedAny = true;
+          return { ...meal, preferredSideIds: kept };
+        });
+        if (prunedAny) {
+          await mealLib.saveMeals(pruned);
+        }
+      } catch (e) {
+        console.error("Sides sync failed:", e);
+      }
+    })();
+  }, [mealLib.loaded, sidesLib.loaded]);
 
   // On startup, check for orphaned tags and ingredients and add them to master lists.
   // Uses async IIFE with sequential awaits to avoid concurrent file write races.
@@ -237,12 +284,22 @@ function MainApp({
             mealLib={mealLib}
             tagLib={tagLib}
             ingredientLib={ingredientLib}
+            sides={sidesLib.sides}
+            sidesLib={sidesLib}
+            mealCardSize={settingsLib.mealCardSize}
+          />
+        )}
+        {activeTab === "sides" && (
+          <SidesLibrary
+            sidesLib={sidesLib}
+            ingredientLib={ingredientLib}
             mealCardSize={settingsLib.mealCardSize}
           />
         )}
         {activeTab === "planner" && (
           <PlannerPage
             meals={mealLib.meals}
+            sides={sidesLib.sides}
             tags={tagLib.tags}
             masterIngredients={ingredientLib.ingredients}
             firstDayOfWeek={settingsLib.firstDayOfWeek}
@@ -254,6 +311,7 @@ function MainApp({
           <ShoppingList
             plan={shoppingPlan}
             meals={mealLib.meals}
+            sides={sidesLib.sides}
             masterIngredients={ingredientLib.ingredients}
             categoryItems={catItemLib.items}
           />
@@ -271,6 +329,7 @@ function MainApp({
             ingredientLib={ingredientLib}
             onReloadAll={async () => {
               await mealLib.reload();
+              await sidesLib.reload();
               await ingredientLib.reload();
               await tagLib.reload();
               await catItemLib.reload();

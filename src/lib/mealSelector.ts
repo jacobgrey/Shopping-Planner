@@ -1,5 +1,11 @@
 import type { Meal, MasterIngredient } from "../types/meals";
 import type { DayPlan, Deal } from "../types/planner";
+import {
+  TAG_MATCH_MAX,
+  VARIETY_PENALTY,
+  dealBonusForIngredients,
+  recencyPenalty,
+} from "./selectorScoring";
 
 interface ScoredMeal {
   meal: Meal;
@@ -93,39 +99,23 @@ function scoreMeals(
   for (const meal of allMeals) {
     let score = 0;
 
-    // Tag match (0-100)
     if (day.tags.length > 0) {
       const matching = day.tags.filter((t) => meal.tags.includes(t)).length;
-      score += (matching / day.tags.length) * 100;
+      score += (matching / day.tags.length) * TAG_MATCH_MAX;
       if (matching === 0) continue;
     } else {
-      score += 100;
+      score += TAG_MATCH_MAX;
     }
 
-    // Deal bonus (0-60, capped)
-    let dealBonus = 0;
-    for (const deal of deals) {
-      const dealName = deal.ingredientName.toLowerCase();
-      const hasIngredient = meal.ingredients.some((entry) => {
-        const master = masterMap.get(entry.ingredientId);
-        if (!master) return false;
-        const ingName = master.name.toLowerCase();
-        return ingName.includes(dealName) || dealName.includes(ingName);
-      });
-      if (hasIngredient) dealBonus += 20 * deal.biasStrength;
-    }
-    score += Math.min(dealBonus, 60);
+    score += dealBonusForIngredients(
+      meal.ingredients.map((e) => e.ingredientId),
+      deals,
+      masterMap,
+    );
 
-    // Recency penalty
-    const recentIdx = recentlyUsedIds.indexOf(meal.id);
-    if (recentIdx >= 0) {
-      if (recentIdx < 7) score -= 50;
-      else if (recentIdx < 14) score -= 25;
-      else if (recentIdx < 21) score -= 10;
-    }
+    score -= recencyPenalty(recentlyUsedIds.indexOf(meal.id));
 
-    // Variety penalty
-    if (usedThisWeek.has(meal.id)) score -= 40;
+    if (usedThisWeek.has(meal.id)) score -= VARIETY_PENALTY;
 
     scored.push({ meal, score });
   }

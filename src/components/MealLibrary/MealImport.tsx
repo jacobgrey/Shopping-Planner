@@ -2,7 +2,14 @@ import { useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import { parseMealImportJson } from "../../lib/importValidator";
-import type { MealDefinition, MasterIngredient, TagDefinition, IngredientEntry } from "../../types/meals";
+import type {
+  MealDefinition,
+  MasterIngredient,
+  TagDefinition,
+  IngredientEntry,
+  Side,
+  SideDefinition,
+} from "../../types/meals";
 
 interface MealImportProps {
   ingredientLib: {
@@ -11,6 +18,10 @@ interface MealImportProps {
   };
   tagLib: {
     addTagsBatch: (entries: { slug: string; label: string }[]) => Promise<TagDefinition[]>;
+  };
+  sidesLib: {
+    sides: Side[];
+    addSide: (def: SideDefinition) => Promise<Side>;
   };
   onImport: (
     meals: MealDefinition[],
@@ -22,6 +33,7 @@ interface MealImportProps {
 export default function MealImport({
   ingredientLib,
   tagLib,
+  sidesLib,
   onImport,
   onClose,
 }: MealImportProps) {
@@ -98,6 +110,28 @@ export default function MealImport({
       // Step 3: Create missing tags via ref-based batch (single file write)
       const createdTags = await tagLib.addTagsBatch(tagEntries);
 
+      // Step 3.5: Resolve/create Side entries for each legacy side-name string,
+      // keeping track of their IDs so we can populate preferredSideIds below.
+      const sideIdByName = new Map<string, string>();
+      for (const existing of sidesLib.sides) {
+        sideIdByName.set(existing.name.trim().toLowerCase(), existing.id);
+      }
+      for (const importMeal of result.meals) {
+        if (!importMeal.sides) continue;
+        for (const rawName of importMeal.sides) {
+          const trimmed = rawName.trim();
+          if (!trimmed) continue;
+          const key = trimmed.toLowerCase();
+          if (sideIdByName.has(key)) continue;
+          const side = await sidesLib.addSide({
+            name: trimmed,
+            ingredients: [],
+            tags: [],
+          });
+          sideIdByName.set(key, side.id);
+        }
+      }
+
       // Step 4: Convert import meals to internal format
       // findByName reads from ingredientsRef.current (updated in step 2), so lookups are fresh
       const convertedMeals: MealDefinition[] = [];
@@ -112,9 +146,15 @@ export default function MealImport({
             });
           }
         }
+        const preferredSideIds: string[] = [];
+        for (const rawName of importMeal.sides ?? []) {
+          const key = rawName.trim().toLowerCase();
+          const id = sideIdByName.get(key);
+          if (id) preferredSideIds.push(id);
+        }
         convertedMeals.push({
           name: importMeal.name,
-          sides: importMeal.sides,
+          preferredSideIds: preferredSideIds.length > 0 ? preferredSideIds : undefined,
           ingredients,
           tags: importMeal.tags,
           prepTimeHours: importMeal.prepTimeHours,

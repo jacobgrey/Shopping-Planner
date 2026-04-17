@@ -1,13 +1,17 @@
 import { useState, useEffect, useRef } from "react";
-import type { Meal } from "../types/meals";
 import { loadMealThumbnail } from "../lib/mealImages";
 
+interface ImageItem {
+  id: string;
+  imageFilename?: string;
+}
+
 /**
- * Loads meal images into a Map<mealId, dataUrl> for display.
- * Only loads images for meals that have an imageFilename set.
+ * Loads meal/side images into a Map<id, dataUrl> for display.
+ * Only loads images for items that have an imageFilename set.
  * Tracks filename changes to reload when image is updated.
  */
-export function useMealImages(meals: Meal[]) {
+export function useMealImages(meals: ImageItem[]) {
   const [images, setImages] = useState<Map<string, string>>(new Map());
   const [loading, setLoading] = useState(false);
   // Track which mealId+filename combos we've already loaded

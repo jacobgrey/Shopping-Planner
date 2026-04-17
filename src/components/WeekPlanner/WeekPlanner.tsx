@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { Meal, TagDefinition, MasterIngredient } from "../../types/meals";
+import type { Meal, Side, TagDefinition, MasterIngredient } from "../../types/meals";
 import type { DayPlan, Deal, ManualItem } from "../../types/planner";
 import { getDisplayOrder } from "../../types/planner";
 import DayCard from "./DayCard";
@@ -11,12 +11,16 @@ interface WeekPlannerProps {
   days: DayPlan[];
   deals: Deal[];
   meals: Meal[];
+  sides: Side[];
   availableTags: TagDefinition[];
   masterIngredients: MasterIngredient[];
   firstDayOfWeek: number;
   onSetDayTags: (dayOfWeek: number, tags: string[]) => void;
   onToggleLock: (dayOfWeek: number) => void;
   onSetDayMeal: (dayOfWeek: number, mealId: string | undefined) => void;
+  onSetSideAt: (dayOfWeek: number, chipIndex: number, sideId: string) => void;
+  onAddSideChip: (dayOfWeek: number) => void;
+  onRemoveSideChip: (dayOfWeek: number, chipIndex: number) => void;
   onAutoFill: () => void;
   onRegenerateDay: (dayOfWeek: number) => void;
   onClearWeek: () => void;
@@ -34,12 +38,16 @@ export default function WeekPlanner({
   days,
   deals,
   meals,
+  sides,
   availableTags,
   masterIngredients,
   firstDayOfWeek,
   onSetDayTags,
   onToggleLock,
   onSetDayMeal,
+  onSetSideAt,
+  onAddSideChip,
+  onRemoveSideChip,
   onAutoFill,
   onRegenerateDay,
   onClearWeek,
@@ -134,11 +142,15 @@ export default function WeekPlanner({
             day={day}
             meal={getMeal(day.assignedMealId)}
             allMeals={meals}
+            allSides={sides}
             availableTags={availableTags}
             onTagsChange={(tags) => onSetDayTags(day.dayOfWeek, tags)}
             onToggleLock={() => onToggleLock(day.dayOfWeek)}
             onRegenerate={() => onRegenerateDay(day.dayOfWeek)}
             onSetMeal={(id) => onSetDayMeal(day.dayOfWeek, id)}
+            onSetSideAt={(idx, sideId) => onSetSideAt(day.dayOfWeek, idx, sideId)}
+            onAddSideChip={() => onAddSideChip(day.dayOfWeek)}
+            onRemoveSideChip={(idx) => onRemoveSideChip(day.dayOfWeek, idx)}
             cardView={cardView}
             dinnerTime={dinnerTime}
             weekOf={weekOf}

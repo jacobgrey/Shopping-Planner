@@ -120,5 +120,14 @@ export function useMealLibrary() {
     [saveMeals]
   );
 
-  return { meals, loaded, reload: loadMeals, addMeal, updateMeal, deleteMeal, importMeals };
+  return {
+    meals,
+    loaded,
+    reload: loadMeals,
+    addMeal,
+    updateMeal,
+    deleteMeal,
+    importMeals,
+    saveMeals,
+  };
 }

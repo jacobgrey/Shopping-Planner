@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { Meal, MealDefinition, MasterIngredient, TagDefinition } from "../../types/meals";
+import type { Meal, MealDefinition, MasterIngredient, TagDefinition, Side, SideDefinition } from "../../types/meals";
 import TagBadge from "../common/TagBadge";
 import NoteText from "../common/NoteText";
 import MealDetails from "./MealDetails";
@@ -42,6 +42,11 @@ interface MealLibraryProps {
     addIngredientsBatch: (defs: Omit<MasterIngredient, "id">[]) => Promise<MasterIngredient[]>;
     findByName: (name: string) => MasterIngredient | undefined;
   };
+  sides: Side[];
+  sidesLib: {
+    sides: Side[];
+    addSide: (def: SideDefinition) => Promise<Side>;
+  };
   mealCardSize: "small" | "medium" | "large";
 }
 
@@ -51,7 +56,7 @@ const CARD_SIZES = {
   large: { height: "h-[280px]", grid: "grid-cols-1 md:grid-cols-2" },
 };
 
-export default function MealLibrary({ mealLib, tagLib, ingredientLib, mealCardSize }: MealLibraryProps) {
+export default function MealLibrary({ mealLib, tagLib, ingredientLib, sides, sidesLib, mealCardSize }: MealLibraryProps) {
   const { meals, loaded, addMeal, updateMeal, deleteMeal, importMeals } = mealLib;
   const { tags, loaded: tagsLoaded } = tagLib;
   const { ingredients, loaded: ingsLoaded, addIngredient } = ingredientLib;
@@ -188,6 +193,7 @@ export default function MealLibrary({ mealLib, tagLib, ingredientLib, mealCardSi
         meal={meal}
         masterIngredients={ingredients}
         availableTags={tags}
+        availableSides={sides}
         imageSrc={images.get(meal.id)}
         onUpdate={updateMeal}
         onDelete={deleteMeal}
@@ -204,6 +210,7 @@ export default function MealLibrary({ mealLib, tagLib, ingredientLib, mealCardSi
       <MealImport
         ingredientLib={ingredientLib}
         tagLib={tagLib}
+        sidesLib={sidesLib}
         onImport={importMeals}
         onClose={() => setViewMode({ view: "grid" })}
       />
@@ -302,8 +309,13 @@ export default function MealLibrary({ mealLib, tagLib, ingredientLib, mealCardSi
                 {/* Left: Info */}
                 <div className="flex-1 p-3 flex flex-col min-w-0 overflow-hidden">
                   <h3 className="font-semibold text-gray-800 text-sm truncate mb-1">{meal.name || "Untitled Meal"}</h3>
-                  {meal.sides && meal.sides.length > 0 && (
-                    <p className="text-[10px] text-gray-500 truncate mb-1">+ {meal.sides.join(", ")}</p>
+                  {meal.preferredSideIds && meal.preferredSideIds.length > 0 && (
+                    <p className="text-[10px] text-gray-500 truncate mb-1">
+                      + {meal.preferredSideIds
+                        .map((id) => sides.find((s) => s.id === id)?.name)
+                        .filter(Boolean)
+                        .join(", ")}
+                    </p>
                   )}
                   {meal.tags.length > 0 && (
                     <div className="flex flex-wrap gap-0.5 mb-1">

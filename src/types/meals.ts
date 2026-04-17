@@ -87,7 +87,8 @@ export interface ImportMealDefinition {
 
 export interface MealDefinition {
   name: string;
-  sides?: string[];
+  sides?: string[]; // LEGACY — kept only so one-time migration can read existing data
+  preferredSideIds?: string[]; // references Side.id; count is NOT stored here
   ingredients: IngredientEntry[];
   tags: string[];
   prepTimeHours?: number;
@@ -99,6 +100,26 @@ export interface MealDefinition {
 }
 
 export interface Meal extends MealDefinition {
+  id: string;
+  createdAt: string;
+  lastUsed?: string;
+}
+
+// --- Sides (mirrors Meal minus nested sides) ---
+
+export interface SideDefinition {
+  name: string;
+  ingredients: IngredientEntry[];
+  tags: string[]; // reserved; tag UX deferred — always [] for now
+  prepTimeHours?: number;
+  startTimeHours?: number;
+  recipeUrl?: string;
+  imageFilename?: string;
+  notes?: string;
+  nutrition?: string;
+}
+
+export interface Side extends SideDefinition {
   id: string;
   createdAt: string;
   lastUsed?: string;
