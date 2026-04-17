@@ -1,5 +1,6 @@
 import type { Meal, MasterIngredient, StoreCategory, CategoryItem } from "../types/meals";
 import type { WeekPlan } from "../types/planner";
+import { DAY_NAMES } from "../types/planner";
 import type { ShoppingItem } from "../types/shopping";
 
 export function aggregateShoppingList(
@@ -107,7 +108,23 @@ export function aggregateShoppingList(
     }
   }
 
-  // Add free-text "other" notes as simple entries
+  // Add per-day manual items
+  for (const day of plan.days) {
+    if (day.manualItems) {
+      for (const item of day.manualItems) {
+        addItem(item.name, item.category, undefined, undefined, undefined, `${DAY_NAMES[day.dayOfWeek]} (manual)`, false);
+      }
+    }
+  }
+
+  // Add bottom-section manual items
+  if (plan.manualItems) {
+    for (const item of plan.manualItems) {
+      addItem(item.name, item.category, undefined, undefined, undefined, "Additional", false);
+    }
+  }
+
+  // Legacy fallback: process otherNotes if still present (un-migrated data)
   if (plan.otherNotes) {
     const lines = plan.otherNotes
       .split("\n")

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { Meal, TagDefinition, MasterIngredient } from "../../types/meals";
-import type { DayPlan, Deal } from "../../types/planner";
+import type { DayPlan, Deal, ManualItem } from "../../types/planner";
 import { getDisplayOrder } from "../../types/planner";
 import DayCard from "./DayCard";
 import DealsPanel from "./DealsPanel";
@@ -25,6 +25,7 @@ interface WeekPlannerProps {
   onRemoveDeal: (index: number) => void;
   onUpdateDeal: (index: number, deal: Deal) => void;
   dinnerTime: string;
+  onSetDayManualItems: (dayOfWeek: number, items: ManualItem[]) => void;
 }
 
 export default function WeekPlanner({
@@ -46,6 +47,7 @@ export default function WeekPlanner({
   onRemoveDeal,
   onUpdateDeal,
   dinnerTime,
+  onSetDayManualItems,
 }: WeekPlannerProps) {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showQRCodes, setShowQRCodes] = useState(false);
@@ -129,6 +131,8 @@ export default function WeekPlanner({
             dinnerTime={dinnerTime}
             weekOf={weekOf}
             masterIngredients={masterIngredients}
+            manualItems={day.manualItems || []}
+            onManualItemsChange={(items) => onSetDayManualItems(day.dayOfWeek, items)}
           />
         ))}
       </div>

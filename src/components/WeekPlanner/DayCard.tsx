@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import type { DayPlan } from "../../types/planner";
+import type { DayPlan, ManualItem } from "../../types/planner";
 import type { Meal, TagDefinition, MasterIngredient } from "../../types/meals";
 import { DAY_NAMES } from "../../types/planner";
 import TagBadge from "../common/TagBadge";
@@ -7,6 +7,7 @@ import TagSelector from "./TagSelector";
 import NoteText from "../common/NoteText";
 import { QRCodeSVG } from "qrcode.react";
 import { buildCalendarEvent } from "../../lib/calendarUrl";
+import ManualItemChips from "../common/ManualItemChips";
 
 interface DayCardProps {
   day: DayPlan;
@@ -21,6 +22,8 @@ interface DayCardProps {
   dinnerTime?: string;
   weekOf?: string;
   masterIngredients?: MasterIngredient[];
+  manualItems: ManualItem[];
+  onManualItemsChange: (items: ManualItem[]) => void;
 }
 
 export default function DayCard({
@@ -36,6 +39,8 @@ export default function DayCard({
   dinnerTime,
   weekOf,
   masterIngredients,
+  manualItems,
+  onManualItemsChange,
 }: DayCardProps) {
   const [showTagPicker, setShowTagPicker] = useState(false);
   const [showMealPicker, setShowMealPicker] = useState(false);
@@ -285,6 +290,11 @@ export default function DayCard({
           </div>
         )}
       </div>
+      {!showQRCode && (
+        <div className="border-t border-gray-100 pt-1.5 mt-1.5">
+          <ManualItemChips items={manualItems} onChange={onManualItemsChange} compact />
+        </div>
+      )}
     </div>
   );
 }

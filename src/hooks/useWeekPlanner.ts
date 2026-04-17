@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import type { WeekPlan, Deal } from "../types/planner";
+import type { WeekPlan, Deal, ManualItem } from "../types/planner";
 import type { Meal } from "../types/meals";
 import { readJson, writeJson } from "../lib/storage";
 import { selectMealsForWeek, regenerateDay } from "../lib/mealSelector";
@@ -34,12 +34,14 @@ function createEmptyWeek(weekOf: string): WeekPlan {
       dayOfWeek: i,
       tags: [],
       locked: false,
+      manualItems: [],
     })),
     breakfastSelections: [],
     lunchSelections: [],
     snackSelections: [],
     otherSelections: [],
     otherNotes: "",
+    manualItems: [],
   };
 }
 
@@ -81,6 +83,28 @@ export function useWeekPlanner(meals: Meal[], firstDayOfWeek: number = 0) {
       if (!savedPlan.snackSelections) savedPlan.snackSelections = [];
       if (!savedPlan.otherSelections) savedPlan.otherSelections = [];
       if (!savedPlan.otherNotes) savedPlan.otherNotes = "";
+
+      // Migrate otherNotes string → manualItems array
+      if (!savedPlan.manualItems) {
+        if (savedPlan.otherNotes) {
+          savedPlan.manualItems = savedPlan.otherNotes
+            .split("\n")
+            .map((l) => l.trim())
+            .filter(Boolean)
+            .map((name) => ({
+              id: crypto.randomUUID(),
+              name,
+              category: "other" as const,
+            }));
+          savedPlan.otherNotes = "";
+        } else {
+          savedPlan.manualItems = [];
+        }
+      }
+      // Ensure each day has manualItems
+      for (const day of savedPlan.days) {
+        if (!day.manualItems) day.manualItems = [];
+      }
 
       setPlan(savedPlan);
       planRef.current = savedPlan;
@@ -223,6 +247,7 @@ export function useWeekPlanner(meals: Meal[], firstDayOfWeek: number = 0) {
         ...d,
         assignedMealId: undefined,
         locked: false,
+        manualItems: [],
       })),
     };
     await savePlan(updated);
@@ -246,12 +271,14 @@ export function useWeekPlanner(meals: Meal[], firstDayOfWeek: number = 0) {
         assignedMealId: undefined,
         locked: false,
         tags: [],
+        manualItems: [],
       })),
       breakfastSelections: [],
       lunchSelections: [],
       snackSelections: [],
       otherSelections: [],
       otherNotes: "",
+      manualItems: [],
     };
     await savePlan(updated);
     await saveDeals([]);
@@ -275,6 +302,31 @@ export function useWeekPlanner(meals: Meal[], firstDayOfWeek: number = 0) {
       const p = planRef.current;
       if (!p) return;
       const updated = { ...p, otherNotes: notes };
+      await savePlan(updated);
+    },
+    [savePlan]
+  );
+
+  const setDayManualItems = useCallback(
+    async (dayOfWeek: number, items: ManualItem[]) => {
+      const p = planRef.current;
+      if (!p) return;
+      const updated = {
+        ...p,
+        days: p.days.map((d) =>
+          d.dayOfWeek === dayOfWeek ? { ...d, manualItems: items } : d
+        ),
+      };
+      await savePlan(updated);
+    },
+    [savePlan]
+  );
+
+  const setManualItems = useCallback(
+    async (items: ManualItem[]) => {
+      const p = planRef.current;
+      if (!p) return;
+      const updated = { ...p, manualItems: items };
       await savePlan(updated);
     },
     [savePlan]
@@ -317,6 +369,8 @@ export function useWeekPlanner(meals: Meal[], firstDayOfWeek: number = 0) {
     resetAll,
     setCategorySelections,
     setOtherNotes,
+    setDayManualItems,
+    setManualItems,
     addDeal,
     removeDeal,
     updateDeal,

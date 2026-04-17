@@ -1,6 +1,8 @@
 import { useState } from "react";
 import type { CategoryItem, StoreCategory } from "../../types/meals";
 import { STORE_CATEGORIES } from "../../types/meals";
+import type { ManualItem } from "../../types/planner";
+import ManualItemChips from "../common/ManualItemChips";
 
 interface CategoryPlannerProps {
   breakfastItems: CategoryItem[];
@@ -11,12 +13,12 @@ interface CategoryPlannerProps {
   lunchSelections: string[];
   snackSelections: string[];
   otherSelections: string[];
-  otherNotes: string;
+  manualItems: ManualItem[];
   onBreakfastChange: (ids: string[]) => void;
   onLunchChange: (ids: string[]) => void;
   onSnackChange: (ids: string[]) => void;
   onOtherChange: (ids: string[]) => void;
-  onOtherNotesChange: (notes: string) => void;
+  onManualItemsChange: (items: ManualItem[]) => void;
   onAddItem: (def: Omit<CategoryItem, "id">) => Promise<CategoryItem>;
   onUpdateItem: (id: string, updates: Partial<Omit<CategoryItem, "id">>) => void;
   onDeleteItem: (id: string) => void;
@@ -246,12 +248,12 @@ export default function CategoryPlanner({
   lunchSelections,
   snackSelections,
   otherSelections,
-  otherNotes,
+  manualItems,
   onBreakfastChange,
   onLunchChange,
   onSnackChange,
   onOtherChange,
-  onOtherNotesChange,
+  onManualItemsChange,
   onAddItem,
   onUpdateItem,
   onDeleteItem,
@@ -300,20 +302,17 @@ export default function CategoryPlanner({
         onUpdateItem={onUpdateItem}
         onDeleteItem={onDeleteItem}
       />
-      {/* Free-text other notes */}
+      {/* Additional manual items */}
       <div className="bg-white rounded-lg border border-gray-200 p-4">
         <h3 className="text-sm font-semibold text-gray-800 mb-2">
-          Additional Items (free text)
+          Additional Items
         </h3>
         <p className="text-xs text-gray-500 mb-2">
-          One item per line. These are added directly to the shopping list.
+          Type an item and press Enter. Each item is added to the shopping list under its assigned category.
         </p>
-        <textarea
-          value={otherNotes}
-          onChange={(e) => onOtherNotesChange(e.target.value)}
-          rows={3}
-          placeholder="e.g., Birthday cake&#10;Paper towels&#10;Donuts"
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        <ManualItemChips
+          items={manualItems}
+          onChange={onManualItemsChange}
         />
       </div>
     </div>

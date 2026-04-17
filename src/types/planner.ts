@@ -1,8 +1,17 @@
+import type { StoreCategory } from "./meals";
+
+export interface ManualItem {
+  id: string;
+  name: string;
+  category: StoreCategory;
+}
+
 export interface DayPlan {
   dayOfWeek: number; // 0=Monday, 6=Sunday
   tags: string[];
   assignedMealId?: string;
   locked: boolean;
+  manualItems?: ManualItem[];
 }
 
 export interface WeekPlan {
@@ -12,7 +21,8 @@ export interface WeekPlan {
   lunchSelections: string[];
   snackSelections: string[];
   otherSelections: string[];
-  otherNotes: string;
+  otherNotes: string; // legacy, migrated to manualItems on load
+  manualItems?: ManualItem[];
 }
 
 export interface Deal {

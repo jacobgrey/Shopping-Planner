@@ -52,6 +52,7 @@ export default function PlannerPage({ meals, tags, masterIngredients, firstDayOf
         onRemoveDeal={planner.removeDeal}
         onUpdateDeal={planner.updateDeal}
         dinnerTime={dinnerTime}
+        onSetDayManualItems={planner.setDayManualItems}
       />
 
       <div>
@@ -67,12 +68,12 @@ export default function PlannerPage({ meals, tags, masterIngredients, firstDayOf
           lunchSelections={planner.plan.lunchSelections}
           snackSelections={planner.plan.snackSelections}
           otherSelections={planner.plan.otherSelections || []}
-          otherNotes={planner.plan.otherNotes || ""}
+          manualItems={planner.plan.manualItems || []}
           onBreakfastChange={(ids) => planner.setCategorySelections("breakfastSelections", ids)}
           onLunchChange={(ids) => planner.setCategorySelections("lunchSelections", ids)}
           onSnackChange={(ids) => planner.setCategorySelections("snackSelections", ids)}
           onOtherChange={(ids) => planner.setCategorySelections("otherSelections", ids)}
-          onOtherNotesChange={planner.setOtherNotes}
+          onManualItemsChange={planner.setManualItems}
           onAddItem={categoryItemLib.addItem}
           onUpdateItem={categoryItemLib.updateItem}
           onDeleteItem={categoryItemLib.deleteItem}
