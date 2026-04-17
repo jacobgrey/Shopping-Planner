@@ -177,64 +177,98 @@ export async function fetchImageFromRecipeUrl(recipeUrl: string): Promise<Uint8A
   }
 }
 
-/** Search Google Images for a meal name and fetch the first result. Returns image binary data or null. */
-export async function fetchImageBySearch(mealName: string): Promise<Uint8Array | null> {
-  try {
-    const query = encodeURIComponent(mealName + " food");
-    const searchUrl = `https://www.google.com/search?q=${query}&tbm=isch&udm=2`;
-    const pageResp = await tauriFetch(searchUrl, {
-      method: "GET",
-      headers: {
-        "User-Agent": BROWSER_UA,
-        "Accept": "text/html,application/xhtml+xml",
-      },
-    });
-    if (!pageResp.ok) return null;
-    const html = await pageResp.text();
+/** Decode common HTML/JSON escapes found in Bing's inline JSON attributes. */
+function decodeEscapedUrl(raw: string): string {
+  return raw
+    .replace(/\\u002f/gi, "/")
+    .replace(/\\u0026/gi, "&")
+    .replace(/\\u003d/gi, "=")
+    .replace(/&amp;/g, "&")
+    .replace(/\\\//g, "/");
+}
 
-    // Google Images embeds image URLs in various patterns
-    // Look for data that contains actual image URLs
-    const imgUrls: string[] = [];
+/** Scrape Bing Images for candidate image URLs. Bing is more scrape-friendly than Google. */
+async function searchBingImages(query: string): Promise<string[]> {
+  const searchUrl = `https://www.bing.com/images/search?q=${encodeURIComponent(query)}&form=HDRSC2&first=1`;
+  const resp = await tauriFetch(searchUrl, {
+    method: "GET",
+    headers: {
+      "User-Agent": BROWSER_UA,
+      "Accept": "text/html,application/xhtml+xml",
+      "Accept-Language": "en-US,en;q=0.9",
+    },
+  });
+  if (!resp.ok) return [];
+  const html = await resp.text();
 
-    // Pattern: ["https://...jpg",width,height] in inline scripts
-    const scriptPattern = /\["(https?:\/\/[^"]+\.(?:jpg|jpeg|png|webp)(?:\?[^"]*)?)",[0-9]+,[0-9]+\]/gi;
-    for (const m of html.matchAll(scriptPattern)) {
-      const url = m[1];
-      // Skip Google's own thumbnails and icons
-      if (!url.includes("gstatic.com") && !url.includes("google.com")) {
-        imgUrls.push(url);
-      }
-    }
-
-    // Fallback: look for og:image or any large image URL in the page
-    if (imgUrls.length === 0) {
-      const ogMatch = html.match(/<meta[^>]+property\s*=\s*["']og:image["'][^>]+content\s*=\s*["']([^"']+)["']/i);
-      if (ogMatch) imgUrls.push(ogMatch[1]);
-    }
-
-    if (imgUrls.length === 0) return null;
-
-    // Try fetching the first few URLs until one succeeds
-    for (const imgUrl of imgUrls.slice(0, 3)) {
-      try {
-        // Unescape unicode sequences that Google may use
-        const cleanUrl = imgUrl.replace(/\\u003d/g, "=").replace(/\\u0026/g, "&");
-        const imgResp = await tauriFetch(cleanUrl, {
-          method: "GET",
-          headers: { "User-Agent": BROWSER_UA, "Accept": "image/*" },
-        });
-        if (!imgResp.ok) continue;
-        const buf = await imgResp.arrayBuffer();
-        if (buf.byteLength < 1000) continue; // Too small, probably not a real image
-        return new Uint8Array(buf);
-      } catch {
-        continue; // Try next URL
-      }
-    }
-    return null;
-  } catch {
-    return null;
+  const urls: string[] = [];
+  // Bing embeds each result as m="{...&quot;murl&quot;:&quot;https://...jpg&quot;...}"
+  const murlPattern = /(?:&quot;|")murl(?:&quot;|"):(?:&quot;|")([^"&]+)(?:&quot;|")/gi;
+  for (const m of html.matchAll(murlPattern)) {
+    const url = decodeEscapedUrl(m[1]);
+    if (/^https?:\/\//i.test(url)) urls.push(url);
   }
+  return urls;
+}
+
+/** Scrape DuckDuckGo Images (HTML fallback) for candidate image URLs. */
+async function searchDuckDuckGoImages(query: string): Promise<string[]> {
+  // DDG's lite HTML endpoint occasionally returns direct image links
+  const searchUrl = `https://duckduckgo.com/html/?q=${encodeURIComponent(query + " image")}&iax=images&ia=images`;
+  const resp = await tauriFetch(searchUrl, {
+    method: "GET",
+    headers: {
+      "User-Agent": BROWSER_UA,
+      "Accept": "text/html,application/xhtml+xml",
+    },
+  });
+  if (!resp.ok) return [];
+  const html = await resp.text();
+  const urls: string[] = [];
+  const pattern = /https?:\/\/[^\s"'<>]+\.(?:jpg|jpeg|png|webp)(?:\?[^\s"'<>]*)?/gi;
+  for (const m of html.matchAll(pattern)) {
+    const url = m[0];
+    if (url.includes("duckduckgo.com") || url.includes("duckduckgo.co")) continue;
+    urls.push(url);
+  }
+  return urls;
+}
+
+/** Search for a meal image and fetch the first usable result. */
+export async function fetchImageBySearch(mealName: string): Promise<Uint8Array | null> {
+  const query = `${mealName} food`;
+  const candidates: string[] = [];
+  try {
+    candidates.push(...(await searchBingImages(query)));
+  } catch { /* try next engine */ }
+  if (candidates.length === 0) {
+    try {
+      candidates.push(...(await searchDuckDuckGoImages(query)));
+    } catch { /* no more engines */ }
+  }
+
+  const seen = new Set<string>();
+  const unique = candidates.filter((u) => {
+    if (seen.has(u)) return false;
+    seen.add(u);
+    return true;
+  });
+
+  for (const imgUrl of unique.slice(0, 6)) {
+    try {
+      const imgResp = await tauriFetch(imgUrl, {
+        method: "GET",
+        headers: { "User-Agent": BROWSER_UA, "Accept": "image/*" },
+      });
+      if (!imgResp.ok) continue;
+      const buf = await imgResp.arrayBuffer();
+      if (buf.byteLength < 2000) continue;
+      return new Uint8Array(buf);
+    } catch {
+      continue;
+    }
+  }
+  return null;
 }
 
 /** Fetch an image directly from a URL. Returns binary data or throws with details. */

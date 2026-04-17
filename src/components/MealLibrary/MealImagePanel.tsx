@@ -152,16 +152,8 @@ export default function MealImagePanel({
       onContextMenu={handleContextMenu}
       style={compact ? { width: "40%", flexShrink: 0 } : undefined}
     >
-      {imageSrc ? (
-        <img
-          src={imageSrc}
-          alt={mealName}
-          className="w-full h-full object-cover cursor-context-menu"
-        />
-      ) : fetching ? (
-        <p className={`${textSize} text-gray-400`}>Fetching...</p>
-      ) : showUrlInput ? (
-        <div className="w-full px-2">
+      {showUrlInput ? (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-100 px-2 z-10">
           <input
             type="url"
             value={urlValue}
@@ -173,6 +165,14 @@ export default function MealImagePanel({
             className={`w-full px-1.5 py-0.5 ${textSize} border border-blue-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-400`}
           />
         </div>
+      ) : imageSrc ? (
+        <img
+          src={imageSrc}
+          alt={mealName}
+          className="w-full h-full object-cover cursor-context-menu"
+        />
+      ) : fetching ? (
+        <p className={`${textSize} text-gray-400`}>Fetching...</p>
       ) : (
         <div className="flex flex-col items-center gap-1.5 p-2">
           <button onClick={handleFetch} disabled={fetching} className={`${btnPad} ${textSize} font-medium text-blue-600 bg-white border border-blue-300 rounded hover:bg-blue-50 disabled:opacity-50`}>
