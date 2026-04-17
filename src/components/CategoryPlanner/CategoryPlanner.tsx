@@ -292,28 +292,30 @@ export default function CategoryPlanner({
           onDeleteItem={onDeleteItem}
         />
       </div>
-      <CategorySection
-        title="Other"
-        itemType="other"
-        items={otherItems}
-        selected={otherSelections}
-        onChange={onOtherChange}
-        onAddItem={onAddItem}
-        onUpdateItem={onUpdateItem}
-        onDeleteItem={onDeleteItem}
-      />
-      {/* Additional manual items */}
-      <div className="bg-white rounded-lg border border-gray-200 p-4">
-        <h3 className="text-sm font-semibold text-gray-800 mb-2">
-          Additional Items
-        </h3>
-        <p className="text-xs text-gray-500 mb-2">
-          Type an item and press Enter. Each item is added to the shopping list under its assigned category.
-        </p>
-        <ManualItemChips
-          items={manualItems}
-          onChange={onManualItemsChange}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <CategorySection
+          title="Other"
+          itemType="other"
+          items={otherItems}
+          selected={otherSelections}
+          onChange={onOtherChange}
+          onAddItem={onAddItem}
+          onUpdateItem={onUpdateItem}
+          onDeleteItem={onDeleteItem}
         />
+        {/* Additional manual items */}
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <h3 className="text-sm font-semibold text-gray-800 mb-2">
+            Additional Items
+          </h3>
+          <p className="text-xs text-gray-500 mb-2">
+            Type an item and press Enter. Each item is added to the shopping list under its assigned category.
+          </p>
+          <ManualItemChips
+            items={manualItems}
+            onChange={onManualItemsChange}
+          />
+        </div>
       </div>
     </div>
   );

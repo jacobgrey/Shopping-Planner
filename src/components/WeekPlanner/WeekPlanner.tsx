@@ -61,7 +61,7 @@ export default function WeekPlanner({
     <div>
       {showResetConfirm && (
         <ConfirmDialog
-          message="Reset everything? This will clear all meal assignments, day tags, deals, and category selections for this week."
+          message="Reset everything? This will clear all meal assignments, day tags, deals, category selections, and manual items for this week. It will also reset meal cooldowns so previously used meals can be selected again by auto-fill."
           confirmLabel="Reset All"
           danger
           onConfirm={() => {
