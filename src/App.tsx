@@ -238,8 +238,6 @@ function MainApp({
             tagLib={tagLib}
             ingredientLib={ingredientLib}
             mealCardSize={settingsLib.mealCardSize}
-            detailSectionOrder={settingsLib.detailSectionOrder}
-            onSectionOrderChange={settingsLib.setDetailSectionOrder}
           />
         )}
         {activeTab === "planner" && (

@@ -10,21 +10,19 @@ import { openExternal } from "../../lib/openExternal";
 
 type SectionId = "info" | "recipe-ingredients" | "nutrition";
 
-const DEFAULT_SECTION_ORDER: SectionId[] = ["info", "recipe-ingredients", "nutrition"];
+const SECTION_ORDER: SectionId[] = ["info", "recipe-ingredients", "nutrition"];
 
 interface MealDetailsProps {
   meal: Meal;
   masterIngredients: MasterIngredient[];
   availableTags: TagDefinition[];
   imageSrc?: string;
-  detailSectionOrder: string[];
   onUpdate: (id: string, def: Partial<MealDefinition>) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   onBack: () => void;
   onAddMasterIngredient: (def: Omit<MasterIngredient, "id">) => Promise<MasterIngredient>;
   onImageSaved: (mealId: string, filename: string) => void;
   onImageRemoved: (mealId: string) => void;
-  onSectionOrderChange: (order: string[]) => void;
 }
 
 interface EditableIngredient {
@@ -37,20 +35,18 @@ export default function MealDetails({
   masterIngredients,
   availableTags,
   imageSrc,
-  detailSectionOrder,
   onUpdate,
   onDelete,
   onBack,
   onAddMasterIngredient,
   onImageSaved,
   onImageRemoved,
-  onSectionOrderChange,
 }: MealDetailsProps) {
   const isNewMeal = !meal.name;
 
   // Per-section edit state
   const [editingSections, setEditingSections] = useState<Set<SectionId>>(() =>
-    isNewMeal ? new Set(DEFAULT_SECTION_ORDER) : new Set()
+    isNewMeal ? new Set(SECTION_ORDER) : new Set()
   );
 
   // Local edit state for all fields
@@ -79,36 +75,6 @@ export default function MealDetails({
 
   // Toast
   const [toast, setToast] = useState<{ message: string; type: "error" | "success" | "info" } | null>(null);
-
-  // Drag state for section reorder
-  const dragRef = useRef<SectionId | null>(null);
-  const [dragOver, setDragOver] = useState<SectionId | null>(null);
-  const [sectionOrder, setSectionOrder] = useState<SectionId[]>(() => {
-    const order = detailSectionOrder.filter((s): s is SectionId =>
-      DEFAULT_SECTION_ORDER.includes(s as SectionId)
-    );
-    // Add any missing sections at the end
-    for (const s of DEFAULT_SECTION_ORDER) {
-      if (!order.includes(s)) order.push(s);
-    }
-    return order;
-  });
-
-  // Parallax scroll effect — the scroll container is <main>, not viewport
-  const bannerRef = useRef<HTMLDivElement>(null);
-  const parallaxImgRef = useRef<HTMLImageElement>(null);
-  useEffect(() => {
-    const scrollContainer = bannerRef.current?.closest("main");
-    if (!scrollContainer || !imageSrc) return;
-    function onScroll() {
-      if (!parallaxImgRef.current) return;
-      const scrollY = scrollContainer!.scrollTop;
-      // Move image at 40% of scroll speed for a subtle parallax
-      parallaxImgRef.current.style.transform = `translateY(${scrollY * 0.4}px)`;
-    }
-    scrollContainer.addEventListener("scroll", onScroll, { passive: true });
-    return () => scrollContainer.removeEventListener("scroll", onScroll);
-  }, [imageSrc]);
 
   // Focus name input on new meal
   const nameInputRef = useRef<HTMLInputElement>(null);
@@ -215,54 +181,6 @@ export default function MealDetails({
       (!searchQuery || m.name.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
-  // Drag handlers for section reorder
-  function handleDragStart(e: React.DragEvent, section: SectionId) {
-    dragRef.current = section;
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/plain", section);
-  }
-
-  function handleDragOver(e: React.DragEvent, section: SectionId) {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-    if (dragRef.current && dragRef.current !== section) {
-      setDragOver(section);
-    }
-  }
-
-  function handleDragLeave(e: React.DragEvent, section: SectionId) {
-    // Only clear if leaving the section itself, not a child
-    if (dragOver === section && !e.currentTarget.contains(e.relatedTarget as Node)) {
-      setDragOver(null);
-    }
-  }
-
-  function handleDrop(e: React.DragEvent, targetSection: SectionId) {
-    e.preventDefault();
-    const source = dragRef.current;
-    if (!source || source === targetSection) {
-      setDragOver(null);
-      dragRef.current = null;
-      return;
-    }
-    setSectionOrder((prev) => {
-      const next = [...prev];
-      const srcIdx = next.indexOf(source);
-      const tgtIdx = next.indexOf(targetSection);
-      next.splice(srcIdx, 1);
-      next.splice(tgtIdx, 0, source);
-      onSectionOrderChange(next);
-      return next;
-    });
-    setDragOver(null);
-    dragRef.current = null;
-  }
-
-  function handleDragEnd() {
-    setDragOver(null);
-    dragRef.current = null;
-  }
-
   // Section edit toggle button
   function EditToggle({ section }: { section: SectionId }) {
     const isEditing = editingSections.has(section);
@@ -274,23 +192,6 @@ export default function MealDetails({
       >
         {isEditing ? "done" : "edit"}
       </button>
-    );
-  }
-
-  // Drag handle icon — this is the only draggable element
-  function DragHandle({ sectionId }: { sectionId: SectionId }) {
-    return (
-      <span
-        draggable
-        onDragStart={(e) => {
-          handleDragStart(e, sectionId);
-        }}
-        onDragEnd={handleDragEnd}
-        className="cursor-grab text-gray-300 hover:text-gray-500 mr-2 select-none text-lg leading-none"
-        title="Drag to reorder"
-      >
-        ⠿
-      </span>
     );
   }
 
@@ -663,19 +564,14 @@ export default function MealDetails({
 
   return (
     <div className="max-w-4xl mx-auto">
-      {/* Parallax Banner */}
-      <div
-        ref={bannerRef}
-        className="relative h-[250px] -mx-6 -mt-6 mb-6 bg-gray-200 overflow-hidden"
-      >
+      {/* Image Banner */}
+      <div className="relative h-[250px] -mx-6 -mt-6 mb-6 bg-gray-200 overflow-hidden">
         {imageSrc ? (
           <>
             <img
-              ref={parallaxImgRef}
               src={imageSrc}
               alt={name || "Meal image"}
-              className="absolute inset-0 w-full h-[140%] object-cover"
-              style={{ top: "-20%" }}
+              className="absolute inset-0 w-full h-full object-cover"
             />
             {/* Overlay for context menu actions */}
             <div className="absolute inset-0 z-[1]">
@@ -720,21 +616,13 @@ export default function MealDetails({
 
       {/* Sections */}
       <div className="space-y-6">
-        {sectionOrder.map((sectionId) => {
+        {SECTION_ORDER.map((sectionId) => {
           const renderer = SECTION_RENDERERS[sectionId];
-          if (!renderer) return null;
           return (
             <div
               key={sectionId}
-              onDragOver={(e) => handleDragOver(e, sectionId)}
-              onDragLeave={(e) => handleDragLeave(e, sectionId)}
-              onDrop={(e) => handleDrop(e, sectionId)}
-              onDragEnd={handleDragEnd}
-              className={`bg-white rounded-lg border border-gray-200 p-4 transition ${
-                dragOver === sectionId ? "border-blue-400 border-t-2" : ""
-              }`}
+              className="bg-white rounded-lg border border-gray-200 p-4"
               onDoubleClick={() => {
-                // Don't toggle if user is selecting text
                 const selection = window.getSelection();
                 if (selection && selection.toString().length > 0) return;
                 if (!editingSections.has(sectionId)) {
@@ -743,7 +631,6 @@ export default function MealDetails({
               }}
             >
               <div className="flex items-center mb-3">
-                <DragHandle sectionId={sectionId} />
                 <span className="text-xs font-medium text-gray-400 uppercase tracking-wide">
                   {SECTION_LABELS[sectionId]}
                 </span>

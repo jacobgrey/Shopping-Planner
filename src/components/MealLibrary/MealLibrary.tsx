@@ -42,8 +42,6 @@ interface MealLibraryProps {
     findByName: (name: string) => MasterIngredient | undefined;
   };
   mealCardSize: "small" | "medium" | "large";
-  detailSectionOrder: string[];
-  onSectionOrderChange: (order: string[]) => void;
 }
 
 const CARD_SIZES = {
@@ -52,7 +50,7 @@ const CARD_SIZES = {
   large: { height: "h-[280px]", grid: "grid-cols-1 md:grid-cols-2" },
 };
 
-export default function MealLibrary({ mealLib, tagLib, ingredientLib, mealCardSize, detailSectionOrder, onSectionOrderChange }: MealLibraryProps) {
+export default function MealLibrary({ mealLib, tagLib, ingredientLib, mealCardSize }: MealLibraryProps) {
   const { meals, loaded, addMeal, updateMeal, deleteMeal, importMeals } = mealLib;
   const { tags, loaded: tagsLoaded } = tagLib;
   const { ingredients, loaded: ingsLoaded, addIngredient } = ingredientLib;
@@ -142,14 +140,12 @@ export default function MealLibrary({ mealLib, tagLib, ingredientLib, mealCardSi
         masterIngredients={ingredients}
         availableTags={tags}
         imageSrc={images.get(meal.id)}
-        detailSectionOrder={detailSectionOrder}
         onUpdate={updateMeal}
         onDelete={deleteMeal}
         onBack={() => setViewMode({ view: "grid" })}
         onAddMasterIngredient={addIngredient}
         onImageSaved={handleImageSaved}
         onImageRemoved={handleImageRemoved}
-        onSectionOrderChange={onSectionOrderChange}
       />
     );
   }
