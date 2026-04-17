@@ -26,6 +26,7 @@ interface WeekPlannerProps {
   onUpdateDeal: (index: number, deal: Deal) => void;
   dinnerTime: string;
   onSetDayManualItems: (dayOfWeek: number, items: ManualItem[]) => void;
+  mealImages: Map<string, string>;
 }
 
 export default function WeekPlanner({
@@ -48,9 +49,11 @@ export default function WeekPlanner({
   onUpdateDeal,
   dinnerTime,
   onSetDayManualItems,
+  mealImages,
 }: WeekPlannerProps) {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [showQRCodes, setShowQRCodes] = useState(false);
+  type CardView = "normal" | "qr" | "image";
+  const [cardView, setCardView] = useState<CardView>("normal");
 
   function getMeal(mealId?: string): Meal | undefined {
     if (!mealId) return undefined;
@@ -77,16 +80,25 @@ export default function WeekPlanner({
           <p className="text-sm text-gray-500">Week of {weekOf}</p>
         </div>
         <div className="flex gap-2">
-          <button
-            onClick={() => setShowQRCodes(!showQRCodes)}
-            className={`px-4 py-2 text-sm font-medium rounded-lg border ${
-              showQRCodes
-                ? "text-purple-700 bg-purple-50 border-purple-300"
-                : "text-gray-700 bg-white border-gray-300 hover:bg-gray-50"
-            }`}
-          >
-            {showQRCodes ? "Hide QR Codes" : "Show QR Codes"}
-          </button>
+          <div className="flex rounded-lg border border-gray-300 overflow-hidden">
+            {([
+              ["normal", "Normal"],
+              ["qr", "QR Codes"],
+              ["image", "Images"],
+            ] as [CardView, string][]).map(([mode, label]) => (
+              <button
+                key={mode}
+                onClick={() => setCardView(mode)}
+                className={`px-3 py-1.5 text-xs font-medium transition ${
+                  cardView === mode
+                    ? "bg-blue-600 text-white"
+                    : "bg-white text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
           <button
             onClick={() => setShowResetConfirm(true)}
             className="px-4 py-2 text-sm font-medium text-red-600 bg-white border border-red-300 rounded-lg hover:bg-red-50"
@@ -127,10 +139,11 @@ export default function WeekPlanner({
             onToggleLock={() => onToggleLock(day.dayOfWeek)}
             onRegenerate={() => onRegenerateDay(day.dayOfWeek)}
             onSetMeal={(id) => onSetDayMeal(day.dayOfWeek, id)}
-            showQRCode={showQRCodes}
+            cardView={cardView}
             dinnerTime={dinnerTime}
             weekOf={weekOf}
             masterIngredients={masterIngredients}
+            mealImageSrc={day.assignedMealId ? mealImages.get(day.assignedMealId) : undefined}
             manualItems={day.manualItems || []}
             onManualItemsChange={(items) => onSetDayManualItems(day.dayOfWeek, items)}
           />

@@ -78,6 +78,7 @@ export interface ImportMealDefinition {
   startTimeHours?: number;
   prepTimeMinutes?: number; // legacy, auto-converted on import
   recipeUrl?: string;
+  imageFilename?: string;
   notes?: string;
 }
 
@@ -91,6 +92,7 @@ export interface MealDefinition {
   prepTimeHours?: number;
   startTimeHours?: number;
   recipeUrl?: string;
+  imageFilename?: string;
   notes?: string;
 }
 

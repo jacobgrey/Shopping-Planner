@@ -2,6 +2,7 @@
  * Renders text with clickable URLs.
  * URLs are detected and rendered as <a> links that open in default browser.
  */
+import { openExternal } from "../../lib/openExternal";
 
 const URL_REGEX = /https?:\/\/[^\s<>"{}|\\^`[\]]+/g;
 
@@ -37,11 +38,11 @@ export default function NoteText({ text, className = "" }: NoteTextProps) {
           <a
             key={i}
             href={part.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-blue-600 hover:text-blue-800 underline break-all"
+            className="text-blue-600 hover:text-blue-800 underline break-all cursor-pointer"
             onClick={(e) => {
+              e.preventDefault();
               e.stopPropagation();
+              openExternal(part.url);
             }}
           >
             {part.url}

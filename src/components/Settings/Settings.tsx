@@ -18,6 +18,8 @@ interface SettingsProps {
   setFirstDayOfWeek: (day: number) => void;
   dinnerTime: string;
   setDinnerTime: (time: string) => void;
+  mealCardSize: "small" | "medium" | "large";
+  setMealCardSize: (size: "small" | "medium" | "large") => void;
   tagLib: {
     tags: TagDefinition[];
     addTag: (label: string) => Promise<TagDefinition>;
@@ -46,7 +48,7 @@ function slugify(label: string): string {
     .replace(/^-|-$/g, "");
 }
 
-export default function Settings({ firstDayOfWeek, setFirstDayOfWeek, dinnerTime, setDinnerTime, tagLib, mealLib, ingredientLib, onReloadAll }: SettingsProps) {
+export default function Settings({ firstDayOfWeek, setFirstDayOfWeek, dinnerTime, setDinnerTime, mealCardSize, setMealCardSize, tagLib, mealLib, ingredientLib, onReloadAll }: SettingsProps) {
   const [currentDir] = useState(getStorageDirectory() || "");
   const [exportDir, setExportDir] = useState<string>("");
   const [status, setStatus] = useState<string | null>(null);
@@ -251,6 +253,26 @@ export default function Settings({ firstDayOfWeek, setFirstDayOfWeek, dinnerTime
           onChange={(e) => setDinnerTime(e.target.value)}
           className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
+      </section>
+
+      {/* Meal Card Size */}
+      <section>
+        <h3 className="text-sm font-semibold text-gray-700 mb-2">Meal Library Card Size</h3>
+        <div className="flex rounded-lg border border-gray-300 overflow-hidden w-fit">
+          {(["small", "medium", "large"] as const).map((size) => (
+            <button
+              key={size}
+              onClick={() => setMealCardSize(size)}
+              className={`px-4 py-1.5 text-sm font-medium transition capitalize ${
+                mealCardSize === size
+                  ? "bg-blue-600 text-white"
+                  : "bg-white text-gray-600 hover:bg-gray-50"
+              }`}
+            >
+              {size}
+            </button>
+          ))}
+        </div>
       </section>
 
       {/* Export/Import */}

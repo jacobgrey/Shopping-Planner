@@ -1,10 +1,16 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import type { Meal, MealDefinition, MasterIngredient, TagDefinition } from "../../types/meals";
 import TagBadge from "../common/TagBadge";
 import NoteText from "../common/NoteText";
 import MealEditor from "./MealEditor";
 import MealImport from "./MealImport";
+import Toast from "../common/Toast";
 import { CARD_BORDER } from "../../lib/theme";
+import { useMealImages } from "../../hooks/useMealImages";
+import MealImagePanel from "./MealImagePanel";
+import { openExternal } from "../../lib/openExternal";
+
+type SortMode = "name-az" | "name-za" | "by-tag" | "prep-time";
 
 interface MealLibraryProps {
   mealLib: {
@@ -31,28 +37,70 @@ interface MealLibraryProps {
     addIngredientsBatch: (defs: Omit<MasterIngredient, "id">[]) => Promise<MasterIngredient[]>;
     findByName: (name: string) => MasterIngredient | undefined;
   };
+  mealCardSize: "small" | "medium" | "large";
 }
 
-export default function MealLibrary({ mealLib, tagLib, ingredientLib }: MealLibraryProps) {
+const CARD_SIZES = {
+  small: { height: "h-[160px]", grid: "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4" },
+  medium: { height: "h-[220px]", grid: "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" },
+  large: { height: "h-[280px]", grid: "grid-cols-1 md:grid-cols-2" },
+};
+
+export default function MealLibrary({ mealLib, tagLib, ingredientLib, mealCardSize }: MealLibraryProps) {
   const { meals, loaded, addMeal, updateMeal, deleteMeal, importMeals } = mealLib;
   const { tags, loaded: tagsLoaded } = tagLib;
   const { ingredients, loaded: ingsLoaded, addIngredient } = ingredientLib;
   const [searchQuery, setSearchQuery] = useState("");
   const [filterTag, setFilterTag] = useState<string>("");
+  const [sortMode, setSortMode] = useState<SortMode>("name-az");
   const [editingMeal, setEditingMeal] = useState<Meal | null>(null);
   const [showEditor, setShowEditor] = useState(false);
   const [showImport, setShowImport] = useState(false);
+
+  // Quick-edit states
+  const [editingNotesId, setEditingNotesId] = useState<string | null>(null);
+  const [editingNotesValue, setEditingNotesValue] = useState("");
+  const [editingUrlId, setEditingUrlId] = useState<string | null>(null);
+  const [editingUrlValue, setEditingUrlValue] = useState("");
+
+  // Image states
+  const { images, reloadImage, removeImage } = useMealImages(meals);
+  const [toast, setToast] = useState<{ message: string; type: "error" | "success" | "info" } | null>(null);
 
   if (!loaded || !tagsLoaded || !ingsLoaded) {
     return <p className="text-gray-500">Loading meals...</p>;
   }
 
+  // Filter
   const filtered = meals.filter((meal) => {
     const matchesSearch =
       !searchQuery ||
       meal.name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesTag = !filterTag || meal.tags.includes(filterTag);
     return matchesSearch && matchesTag;
+  });
+
+  // Sort
+  const sorted = [...filtered].sort((a, b) => {
+    switch (sortMode) {
+      case "name-az":
+        return a.name.localeCompare(b.name);
+      case "name-za":
+        return b.name.localeCompare(a.name);
+      case "by-tag": {
+        const aTag = a.tags[0] || "zzz";
+        const bTag = b.tags[0] || "zzz";
+        const tagCmp = aTag.localeCompare(bTag);
+        return tagCmp !== 0 ? tagCmp : a.name.localeCompare(b.name);
+      }
+      case "prep-time": {
+        const aTime = Math.max(a.startTimeHours ?? 0, a.prepTimeHours ?? 0);
+        const bTime = Math.max(b.startTimeHours ?? 0, b.prepTimeHours ?? 0);
+        return bTime - aTime || a.name.localeCompare(b.name);
+      }
+      default:
+        return 0;
+    }
   });
 
   function handleNewMeal() {
@@ -81,17 +129,77 @@ export default function MealLibrary({ mealLib, tagLib, ingredientLib }: MealLibr
     return await addIngredient(def);
   }
 
+  // Quick-edit handlers
+  function startEditNotes(meal: Meal) {
+    setEditingNotesId(meal.id);
+    setEditingNotesValue(meal.notes || "");
+  }
+
+  async function saveNotes(mealId: string) {
+    try {
+      await updateMeal(mealId, { notes: editingNotesValue.trim() || undefined });
+      setEditingNotesId(null);
+    } catch (e) {
+      console.error("Failed to save notes:", e);
+      // Keep editor open so user can retry
+    }
+  }
+
+  function startEditUrl(meal: Meal) {
+    setEditingUrlId(meal.id);
+    setEditingUrlValue(meal.recipeUrl || "");
+  }
+
+  async function saveUrl(mealId: string) {
+    try {
+      await updateMeal(mealId, { recipeUrl: editingUrlValue.trim() || undefined });
+      setEditingUrlId(null);
+    } catch (e) {
+      console.error("Failed to save URL:", e);
+    }
+  }
+
+  function handleUrlKeyDown(e: React.KeyboardEvent, mealId: string) {
+    if (e.key === "Enter" || e.key === "Tab") {
+      e.preventDefault();
+      saveUrl(mealId);
+    }
+  }
+
+  // Image handlers
+  const showToast = useCallback((message: string, type: "error" | "success" | "info" = "error") => {
+    setToast({ message, type });
+  }, []);
+
+  async function handleImageSaved(mealId: string, filename: string) {
+    await updateMeal(mealId, { imageFilename: filename });
+    reloadImage(mealId, filename);
+  }
+
+  async function handleImageRemoved(mealId: string) {
+    await updateMeal(mealId, { imageFilename: undefined });
+    removeImage(mealId);
+  }
+
+  function handleOpenUrl(e: React.MouseEvent, url: string) {
+    e.preventDefault();
+    openExternal(url);
+  }
+
   if (showEditor) {
     return (
       <MealEditor
         meal={editingMeal}
         masterIngredients={ingredients}
         availableTags={tags}
+        imageSrc={editingMeal ? images.get(editingMeal.id) : undefined}
         onSave={handleSaveMeal}
         onCancel={() => {
           setShowEditor(false);
           setEditingMeal(null);
         }}
+        onImageSaved={handleImageSaved}
+        onImageRemoved={handleImageRemoved}
         onAddMasterIngredient={handleAddMasterIngredient}
       />
     );
@@ -133,13 +241,13 @@ export default function MealLibrary({ mealLib, tagLib, ingredientLib }: MealLibr
         </div>
       </div>
 
-      <div className="flex gap-3 mb-4">
+      <div className="flex gap-3 mb-4 flex-wrap">
         <input
           type="text"
           placeholder="Search meals..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="flex-1 min-w-[200px] px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
         <select
           value={filterTag}
@@ -153,9 +261,29 @@ export default function MealLibrary({ mealLib, tagLib, ingredientLib }: MealLibr
             </option>
           ))}
         </select>
+        <div className="flex rounded-lg border border-gray-300 overflow-hidden">
+          {([
+            ["name-az", "A-Z"],
+            ["name-za", "Z-A"],
+            ["by-tag", "By Tag"],
+            ["prep-time", "Prep Time"],
+          ] as [SortMode, string][]).map(([mode, label]) => (
+            <button
+              key={mode}
+              onClick={() => setSortMode(mode)}
+              className={`px-3 py-1.5 text-xs font-medium transition ${
+                sortMode === mode
+                  ? "bg-blue-600 text-white"
+                  : "bg-white text-gray-600 hover:bg-gray-50"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {filtered.length === 0 ? (
+      {sorted.length === 0 ? (
         <div className="text-center py-12 text-gray-500">
           {meals.length === 0 ? (
             <div>
@@ -167,60 +295,138 @@ export default function MealLibrary({ mealLib, tagLib, ingredientLib }: MealLibr
           )}
         </div>
       ) : (
-        <div className="grid gap-3">
-          {filtered.map((meal) => (
-            <div
-              key={meal.id}
-              className={`bg-white rounded-lg border ${CARD_BORDER} p-4 hover:shadow-sm transition`}
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-1">
-                    <h3 className="font-semibold text-gray-800">{meal.name}</h3>
-                    {meal.sides && meal.sides.length > 0 && (
-                      <span className="text-xs text-gray-500">+ {meal.sides.join(", ")}</span>
+        <div className={`grid ${CARD_SIZES[mealCardSize].grid} gap-4`}>
+          {sorted.map((meal) => {
+            const imgSrc = images.get(meal.id);
+
+            return (
+              <div
+                key={meal.id}
+                className={`bg-white rounded-lg border ${CARD_BORDER} overflow-hidden hover:shadow-sm transition ${CARD_SIZES[mealCardSize].height} flex`}
+              >
+                {/* Left: Info */}
+                <div className="flex-1 p-3 flex flex-col min-w-0 overflow-hidden">
+                  <div className="flex items-start justify-between gap-1 mb-1">
+                    <h3 className="font-semibold text-gray-800 text-sm truncate">{meal.name}</h3>
+                    <div className="flex gap-1.5 shrink-0">
+                      <button
+                        onClick={() => handleEditMeal(meal)}
+                        className="text-[10px] text-blue-600 hover:text-blue-800"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => deleteMeal(meal.id)}
+                        className="text-[10px] text-red-500 hover:text-red-700"
+                      >
+                        Del
+                      </button>
+                    </div>
+                  </div>
+                  {meal.sides && meal.sides.length > 0 && (
+                    <p className="text-[10px] text-gray-500 truncate mb-1">+ {meal.sides.join(", ")}</p>
+                  )}
+                  {meal.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-0.5 mb-1">
+                      {meal.tags.slice(0, 3).map((tag) => (
+                        <TagBadge key={tag} tag={tag} allTags={tags} />
+                      ))}
+                      {meal.tags.length > 3 && (
+                        <span className="text-[9px] text-gray-400">+{meal.tags.length - 3}</span>
+                      )}
+                    </div>
+                  )}
+                  <p className="text-[10px] text-gray-500 mb-1">
+                    {meal.ingredients.length} ingredient{meal.ingredients.length !== 1 ? "s" : ""}
+                    {meal.prepTimeHours ? ` · ${meal.prepTimeHours}h prep` : ""}
+                    {meal.startTimeHours ? ` · ${meal.startTimeHours}h start` : ""}
+                  </p>
+
+                  {/* Recipe URL / Search link */}
+                  <div className="text-[10px] mb-1 flex items-center gap-1">
+                    {meal.recipeUrl ? (
+                      <>
+                        <a href={meal.recipeUrl} onClick={(e) => handleOpenUrl(e, meal.recipeUrl!)} className="text-blue-500 hover:text-blue-700 underline truncate cursor-pointer">
+                          {(() => { try { return new URL(meal.recipeUrl).hostname.replace(/^www\./, ""); } catch { return "Recipe"; } })()}
+                        </a>
+                        <button onClick={() => startEditUrl(meal)} className="text-gray-400 hover:text-gray-600 shrink-0" title="Edit URL">
+                          <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <a
+                          href="#"
+                          onClick={(e) => handleOpenUrl(e, `https://www.google.com/search?q=${encodeURIComponent(meal.name + " recipe")}`)}
+                          className="text-gray-400 hover:text-gray-600 italic cursor-pointer"
+                        >
+                          Search recipe
+                        </a>
+                        <button onClick={() => startEditUrl(meal)} className="text-gray-400 hover:text-gray-600 shrink-0" title="Add recipe URL">
+                          <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                        </button>
+                      </>
                     )}
                   </div>
-                  <div className="flex flex-wrap gap-1 mb-2">
-                    {meal.tags.map((tag) => (
-                      <TagBadge key={tag} tag={tag} allTags={tags} />
-                    ))}
+                  {editingUrlId === meal.id && (
+                    <input
+                      type="url"
+                      value={editingUrlValue}
+                      onChange={(e) => setEditingUrlValue(e.target.value)}
+                      onBlur={() => saveUrl(meal.id)}
+                      onKeyDown={(e) => handleUrlKeyDown(e, meal.id)}
+                      autoFocus
+                      placeholder="Paste recipe URL..."
+                      className="w-full px-1.5 py-0.5 text-[10px] border border-blue-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-400 mb-1"
+                    />
+                  )}
+
+                  {/* Notes (quick-edit) */}
+                  <div className="flex-1 min-h-0 mt-auto">
+                    {editingNotesId === meal.id ? (
+                      <textarea
+                        value={editingNotesValue}
+                        onChange={(e) => setEditingNotesValue(e.target.value)}
+                        onBlur={() => saveNotes(meal.id)}
+                        autoFocus
+                        rows={3}
+                        className="w-full px-1.5 py-0.5 text-[10px] border border-blue-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-400 resize-none"
+                      />
+                    ) : (
+                      <div
+                        onClick={() => startEditNotes(meal)}
+                        className="text-[10px] text-gray-400 line-clamp-3 cursor-text hover:text-gray-500"
+                        title="Click to edit notes"
+                      >
+                        {meal.notes ? (
+                          <NoteText text={meal.notes} className="text-[10px] text-gray-400" />
+                        ) : (
+                          <span className="italic">Add notes...</span>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  <p className="text-sm text-gray-500">
-                    {meal.ingredients.length} ingredient
-                    {meal.ingredients.length !== 1 ? "s" : ""}
-                    {meal.prepTimeHours ? ` · ${meal.prepTimeHours}h prep` : ""}
-                    {meal.startTimeHours ? ` · start ${meal.startTimeHours}h before` : ""}
-                  </p>
-                  {meal.recipeUrl && (
-                    <p className="text-xs mt-1">
-                      <a href={meal.recipeUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-700 underline">Recipe</a>
-                    </p>
-                  )}
-                  {meal.notes && (
-                    <p className="text-xs text-gray-400 mt-1 line-clamp-2">
-                      <NoteText text={meal.notes} className="text-xs text-gray-400" />
-                    </p>
-                  )}
                 </div>
-                <div className="flex gap-2 ml-4">
-                  <button
-                    onClick={() => handleEditMeal(meal)}
-                    className="text-sm text-blue-600 hover:text-blue-800"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => deleteMeal(meal.id)}
-                    className="text-sm text-red-500 hover:text-red-700"
-                  >
-                    Delete
-                  </button>
-                </div>
+
+                {/* Right: Image */}
+                <MealImagePanel
+                  mealId={meal.id}
+                  mealName={meal.name}
+                  recipeUrl={meal.recipeUrl}
+                  imageFilename={meal.imageFilename}
+                  imageSrc={imgSrc}
+                  compact
+                  onImageSaved={handleImageSaved}
+                  onImageRemoved={handleImageRemoved}
+                  onToast={showToast}
+                />
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
+      )}
+      {toast && (
+        <Toast message={toast.message} type={toast.type} onDone={() => setToast(null)} />
       )}
     </div>
   );

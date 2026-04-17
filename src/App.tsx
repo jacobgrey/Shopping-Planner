@@ -237,6 +237,7 @@ function MainApp({
             mealLib={mealLib}
             tagLib={tagLib}
             ingredientLib={ingredientLib}
+            mealCardSize={settingsLib.mealCardSize}
           />
         )}
         {activeTab === "planner" && (
@@ -263,6 +264,8 @@ function MainApp({
             setFirstDayOfWeek={settingsLib.setFirstDayOfWeek}
             dinnerTime={settingsLib.dinnerTime}
             setDinnerTime={settingsLib.setDinnerTime}
+            mealCardSize={settingsLib.mealCardSize}
+            setMealCardSize={settingsLib.setMealCardSize}
             tagLib={tagLib}
             mealLib={mealLib}
             ingredientLib={ingredientLib}

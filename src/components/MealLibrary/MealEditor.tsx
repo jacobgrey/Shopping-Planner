@@ -2,14 +2,19 @@ import { useState } from "react";
 import type { Meal, MealDefinition, MasterIngredient, TagDefinition, StoreCategory } from "../../types/meals";
 import { STORE_CATEGORIES } from "../../types/meals";
 import TagBadge from "../common/TagBadge";
+import MealImagePanel from "./MealImagePanel";
+import Toast from "../common/Toast";
 
 interface MealEditorProps {
   meal: Meal | null;
   masterIngredients: MasterIngredient[];
   availableTags: TagDefinition[];
+  imageSrc?: string;
   onSave: (def: MealDefinition) => void;
   onCancel: () => void;
   onAddMasterIngredient: (def: Omit<MasterIngredient, "id">) => Promise<MasterIngredient>;
+  onImageSaved?: (mealId: string, filename: string) => void;
+  onImageRemoved?: (mealId: string) => void;
 }
 
 interface EditableIngredient {
@@ -24,6 +29,9 @@ export default function MealEditor({
   onSave,
   onCancel,
   onAddMasterIngredient,
+  imageSrc,
+  onImageSaved,
+  onImageRemoved,
 }: MealEditorProps) {
   const [name, setName] = useState(meal?.name || "");
   const [sides, setSides] = useState(meal?.sides?.join(", ") || "");
@@ -34,7 +42,9 @@ export default function MealEditor({
   const [prepTimeHours, setPrepTimeHours] = useState(meal?.prepTimeHours?.toString() || "");
   const [startTimeHours, setStartTimeHours] = useState(meal?.startTimeHours?.toString() || "");
   const [recipeUrl, setRecipeUrl] = useState(meal?.recipeUrl || "");
+  const [imageFilename, setImageFilename] = useState(meal?.imageFilename || "");
   const [notes, setNotes] = useState(meal?.notes || "");
+  const [toast, setToast] = useState<{ message: string; type: "error" | "success" | "info" } | null>(null);
 
   // State for adding a new master ingredient inline
   const [showNewIngForm, setShowNewIngForm] = useState(false);
@@ -56,6 +66,7 @@ export default function MealEditor({
       prepTimeHours: prepTimeHours ? parseFloat(prepTimeHours) : undefined,
       startTimeHours: startTimeHours ? parseFloat(startTimeHours) : undefined,
       recipeUrl: recipeUrl.trim() || undefined,
+      imageFilename: imageFilename || undefined,
       notes: notes.trim() || undefined,
     };
     onSave(def);
@@ -387,6 +398,31 @@ export default function MealEditor({
         />
       </div>
 
+      {/* Meal Image */}
+      {meal && (
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Meal Image <span className="text-gray-400 font-normal">optional</span>
+          </label>
+          <MealImagePanel
+            mealId={meal.id}
+            mealName={name || meal.name}
+            recipeUrl={recipeUrl || undefined}
+            imageFilename={imageFilename || undefined}
+            imageSrc={imageSrc}
+            onImageSaved={(id, filename) => {
+              setImageFilename(filename);
+              onImageSaved?.(id, filename);
+            }}
+            onImageRemoved={(id) => {
+              setImageFilename("");
+              onImageRemoved?.(id);
+            }}
+            onToast={(msg, type) => setToast({ message: msg, type })}
+          />
+        </div>
+      )}
+
       {/* Notes */}
       <div className="mb-6">
         <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -418,6 +454,9 @@ export default function MealEditor({
           Cancel
         </button>
       </div>
+      {toast && (
+        <Toast message={toast.message} type={toast.type} onDone={() => setToast(null)} />
+      )}
     </form>
   );
 }

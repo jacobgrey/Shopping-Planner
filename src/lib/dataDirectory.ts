@@ -9,6 +9,7 @@ export interface AppConfig {
   firstDayOfWeek?: number; // 0=Monday, 6=Sunday (matches internal dayOfWeek)
   exportDirectory?: string; // Default directory for shopping list exports
   dinnerTime?: string; // HH:mm format, default "18:00"
+  mealCardSize?: "small" | "medium" | "large";
 }
 
 /** Get the fixed config file path in %APPDATA%/com.meal-planner.app/ */

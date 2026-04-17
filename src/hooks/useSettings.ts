@@ -4,6 +4,7 @@ import { getAppConfig, updateAppConfig } from "../lib/dataDirectory";
 export function useSettings() {
   const [firstDayOfWeek, setFirstDayOfWeekState] = useState(0); // 0=Monday default
   const [dinnerTime, setDinnerTimeState] = useState("18:00");
+  const [mealCardSize, setMealCardSizeState] = useState<"small" | "medium" | "large">("medium");
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -13,6 +14,9 @@ export function useSettings() {
       }
       if (config?.dinnerTime !== undefined) {
         setDinnerTimeState(config.dinnerTime);
+      }
+      if (config?.mealCardSize !== undefined) {
+        setMealCardSizeState(config.mealCardSize);
       }
       setLoaded(true);
     });
@@ -28,5 +32,10 @@ export function useSettings() {
     await updateAppConfig({ dinnerTime: time });
   }, []);
 
-  return { firstDayOfWeek, setFirstDayOfWeek, dinnerTime, setDinnerTime, loaded };
+  const setMealCardSize = useCallback(async (size: "small" | "medium" | "large") => {
+    setMealCardSizeState(size);
+    await updateAppConfig({ mealCardSize: size });
+  }, []);
+
+  return { firstDayOfWeek, setFirstDayOfWeek, dinnerTime, setDinnerTime, mealCardSize, setMealCardSize, loaded };
 }

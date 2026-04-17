@@ -19,10 +19,11 @@ interface DayCardProps {
   onToggleLock: () => void;
   onRegenerate: () => void;
   onSetMeal: (mealId: string | undefined) => void;
-  showQRCode?: boolean;
+  cardView: "normal" | "qr" | "image";
   dinnerTime?: string;
   weekOf?: string;
   masterIngredients?: MasterIngredient[];
+  mealImageSrc?: string;
   manualItems: ManualItem[];
   onManualItemsChange: (items: ManualItem[]) => void;
 }
@@ -36,10 +37,11 @@ export default function DayCard({
   onToggleLock,
   onRegenerate,
   onSetMeal,
-  showQRCode,
+  cardView,
   dinnerTime,
   weekOf,
   masterIngredients,
+  mealImageSrc,
   manualItems,
   onManualItemsChange,
 }: DayCardProps) {
@@ -179,16 +181,27 @@ export default function DayCard({
       </div>
 
       <div className="border-t border-gray-100 pt-2 flex-1 flex flex-col">
-        {showQRCode && meal ? (
+        {cardView === "qr" && meal ? (
           <>
             <p className="text-sm font-medium text-gray-800 mb-2">{meal.name}</p>
             <div className="mt-auto">
               {(() => {
                 const url = getQRUrl();
                 return url ? (
-                  <QRCodeSVG value={url} size={0} level="L" style={{ width: "100%", height: "auto" }} />
+                  <QRCodeSVG value={url} size={256} level="L" style={{ width: "100%", height: "auto" }} />
                 ) : null;
               })()}
+            </div>
+          </>
+        ) : cardView === "image" && meal ? (
+          <>
+            <p className="text-sm font-medium text-gray-800 mb-2">{meal.name}</p>
+            <div className="mt-auto flex-1 flex items-center justify-center">
+              {mealImageSrc ? (
+                <img src={mealImageSrc} alt={meal.name} className="w-full h-auto rounded object-cover" />
+              ) : (
+                <p className="text-xs text-gray-400 italic">No image</p>
+              )}
             </div>
           </>
         ) : meal ? (
@@ -291,7 +304,7 @@ export default function DayCard({
           </div>
         )}
       </div>
-      {!showQRCode && (
+      {cardView === "normal" && (
         <div className="border-t border-gray-100 pt-1.5 mt-1.5">
           <ManualItemChips items={manualItems} onChange={onManualItemsChange} compact />
         </div>
