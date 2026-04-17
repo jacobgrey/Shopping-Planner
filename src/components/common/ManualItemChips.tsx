@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import type { ManualItem } from "../../types/planner";
 import { STORE_CATEGORIES, type StoreCategory } from "../../types/meals";
+import { CHIP_BG, CHIP_BORDER } from "../../lib/theme";
 
 const CATEGORY_COLORS: Record<StoreCategory, string> = {
   produce: "bg-green-400",
@@ -87,7 +88,7 @@ export default function ManualItemChips({ items, onChange, compact }: ManualItem
           {items.map((item) => (
             <div
               key={item.id}
-              className={`inline-flex items-center gap-0.5 ${chipPad} rounded-full bg-gray-100 border border-gray-200 ${chipText} text-gray-700 relative`}
+              className={`inline-flex items-center gap-0.5 ${chipPad} rounded-full ${CHIP_BG} border ${CHIP_BORDER} ${chipText} text-gray-700 relative`}
             >
               {/* Category dot */}
               <button

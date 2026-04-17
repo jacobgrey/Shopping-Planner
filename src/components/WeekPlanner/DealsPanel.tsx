@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import type { Deal } from "../../types/planner";
 import type { MasterIngredient } from "../../types/meals";
+import { CARD_BORDER } from "../../lib/theme";
 
 const BIAS_LABELS = ["Slight", "Medium", "Strong"] as const;
 
@@ -111,7 +112,7 @@ export default function DealsPanel({
   }
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-4">
+    <div className={`bg-white rounded-lg border ${CARD_BORDER} p-4`}>
       <h3 className="text-sm font-semibold text-gray-800 mb-3">
         This Week's Deals
       </h3>

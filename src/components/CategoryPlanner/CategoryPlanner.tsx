@@ -3,6 +3,7 @@ import type { CategoryItem, StoreCategory } from "../../types/meals";
 import { STORE_CATEGORIES } from "../../types/meals";
 import type { ManualItem } from "../../types/planner";
 import ManualItemChips from "../common/ManualItemChips";
+import { CARD_BORDER } from "../../lib/theme";
 
 interface CategoryPlannerProps {
   breakfastItems: CategoryItem[];
@@ -73,7 +74,7 @@ function CategorySection({
   }
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-4">
+    <div className={`bg-white rounded-lg border ${CARD_BORDER} p-4`}>
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-sm font-semibold text-gray-800">{title}</h3>
         <button
@@ -304,7 +305,7 @@ export default function CategoryPlanner({
           onDeleteItem={onDeleteItem}
         />
         {/* Additional manual items */}
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className={`bg-white rounded-lg border ${CARD_BORDER} p-4`}>
           <h3 className="text-sm font-semibold text-gray-800 mb-2">
             Additional Items
           </h3>

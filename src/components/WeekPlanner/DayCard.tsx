@@ -7,6 +7,7 @@ import TagSelector from "./TagSelector";
 import NoteText from "../common/NoteText";
 import { QRCodeSVG } from "qrcode.react";
 import { buildCalendarEvent } from "../../lib/calendarUrl";
+import { CARD_BORDER } from "../../lib/theme";
 import ManualItemChips from "../common/ManualItemChips";
 
 interface DayCardProps {
@@ -116,7 +117,7 @@ export default function DayCard({
   return (
     <div
       className={`bg-white rounded-lg border p-3 relative flex flex-col ${
-        day.locked ? "border-blue-300 bg-blue-50/30" : "border-gray-200"
+        day.locked ? "border-blue-300 bg-blue-50/30" : CARD_BORDER
       }`}
     >
       <div className="flex items-center justify-between mb-2">

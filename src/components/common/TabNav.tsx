@@ -1,3 +1,5 @@
+import { CARD_BORDER } from "../../lib/theme";
+
 type Tab = "meals" | "planner" | "shopping" | "settings";
 
 interface TabNavProps {
@@ -14,7 +16,7 @@ const TABS: { id: Tab; label: string }[] = [
 
 export default function TabNav({ activeTab, onTabChange }: TabNavProps) {
   return (
-    <nav className="bg-white border-b border-gray-200 px-6">
+    <nav className={`bg-white border-b ${CARD_BORDER} px-6`}>
       <div className="flex items-center h-14">
         <span className="text-lg font-bold text-gray-800 mr-8">
           Meal Planner

@@ -9,6 +9,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { join } from "@tauri-apps/api/path";
 import { exists, mkdir } from "@tauri-apps/plugin-fs";
 import { useState } from "react";
+import { CARD_BORDER } from "../../lib/theme";
 
 interface ShoppingListProps {
   plan: WeekPlan | null;
@@ -159,13 +160,13 @@ export default function ShoppingList({ plan, meals, masterIngredients, categoryI
           <p className="text-sm">Assign meals in the Planner tab to generate your shopping list.</p>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="columns-1 md:columns-2 lg:columns-3 gap-8 space-y-4">
           {groups.map((group) => (
-            <div key={group.label}>
-              <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-2">
+            <div key={group.label} className={`break-inside-avoid bg-white rounded-lg border ${CARD_BORDER} overflow-hidden mb-4`}>
+              <h3 className="text-sm font-semibold text-gray-600 uppercase tracking-wide px-4 py-2 bg-gray-100 border-b border-gray-200">
                 {group.label}
               </h3>
-              <div className="bg-white rounded-lg border border-gray-200 divide-y divide-gray-100">
+              <div className="divide-y divide-gray-100">
                 {group.items.map((item) => (
                   <label
                     key={item.ingredientName}

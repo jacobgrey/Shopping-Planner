@@ -36,7 +36,7 @@ class ErrorBoundary extends Component<
   render() {
     if (this.state.error) {
       return (
-        <div className="flex items-center justify-center h-screen bg-gray-50">
+        <div className="flex items-center justify-center h-screen bg-gray-200">
           <div className="bg-white rounded-xl shadow-lg p-8 max-w-lg w-full mx-4">
             <h1 className="text-xl font-bold text-red-700 mb-2">
               Something went wrong
@@ -100,7 +100,7 @@ function App() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-50">
+      <div className="flex items-center justify-center h-screen bg-gray-200">
         <p className="text-gray-500 text-lg">Loading...</p>
       </div>
     );
@@ -108,7 +108,7 @@ function App() {
 
   if (needsSetup) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-50">
+      <div className="flex items-center justify-center h-screen bg-gray-200">
         <div className="bg-white rounded-xl shadow-lg p-8 max-w-md w-full mx-4">
           <h1 className="text-2xl font-bold text-gray-800 mb-2">Meal Planner</h1>
           <p className="text-gray-600 mb-6">
@@ -124,7 +124,7 @@ function App() {
             </button>
             <button
               onClick={handleChooseDirectory}
-              className="w-full py-3 px-4 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition font-medium"
+              className="w-full py-3 px-4 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-200 transition font-medium"
             >
               Choose Custom Folder...
             </button>
@@ -229,7 +229,7 @@ function MainApp({
   }, [mealLib.loaded, tagLib.loaded, ingredientLib.loaded]);
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
+    <div className="flex flex-col h-screen bg-gray-200">
       <TabNav activeTab={activeTab} onTabChange={setActiveTab} />
       <main className="flex-1 overflow-auto p-6">
         {activeTab === "meals" && (

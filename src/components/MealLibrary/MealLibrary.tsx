@@ -4,6 +4,7 @@ import TagBadge from "../common/TagBadge";
 import NoteText from "../common/NoteText";
 import MealEditor from "./MealEditor";
 import MealImport from "./MealImport";
+import { CARD_BORDER } from "../../lib/theme";
 
 interface MealLibraryProps {
   mealLib: {
@@ -170,7 +171,7 @@ export default function MealLibrary({ mealLib, tagLib, ingredientLib }: MealLibr
           {filtered.map((meal) => (
             <div
               key={meal.id}
-              className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-sm transition"
+              className={`bg-white rounded-lg border ${CARD_BORDER} p-4 hover:shadow-sm transition`}
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
