@@ -258,36 +258,38 @@ export default function CategoryPlanner({
 }: CategoryPlannerProps) {
   return (
     <div className="space-y-4">
-      <CategorySection
-        title="Breakfast Items"
-        itemType="breakfast"
-        items={breakfastItems}
-        selected={breakfastSelections}
-        onChange={onBreakfastChange}
-        onAddItem={onAddItem}
-        onUpdateItem={onUpdateItem}
-        onDeleteItem={onDeleteItem}
-      />
-      <CategorySection
-        title="Lunch Materials"
-        itemType="lunch"
-        items={lunchItems}
-        selected={lunchSelections}
-        onChange={onLunchChange}
-        onAddItem={onAddItem}
-        onUpdateItem={onUpdateItem}
-        onDeleteItem={onDeleteItem}
-      />
-      <CategorySection
-        title="Snacks"
-        itemType="snack"
-        items={snackItems}
-        selected={snackSelections}
-        onChange={onSnackChange}
-        onAddItem={onAddItem}
-        onUpdateItem={onUpdateItem}
-        onDeleteItem={onDeleteItem}
-      />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <CategorySection
+          title="Breakfast Items"
+          itemType="breakfast"
+          items={breakfastItems}
+          selected={breakfastSelections}
+          onChange={onBreakfastChange}
+          onAddItem={onAddItem}
+          onUpdateItem={onUpdateItem}
+          onDeleteItem={onDeleteItem}
+        />
+        <CategorySection
+          title="Lunch Items"
+          itemType="lunch"
+          items={lunchItems}
+          selected={lunchSelections}
+          onChange={onLunchChange}
+          onAddItem={onAddItem}
+          onUpdateItem={onUpdateItem}
+          onDeleteItem={onDeleteItem}
+        />
+        <CategorySection
+          title="Snacks"
+          itemType="snack"
+          items={snackItems}
+          selected={snackSelections}
+          onChange={onSnackChange}
+          onAddItem={onAddItem}
+          onUpdateItem={onUpdateItem}
+          onDeleteItem={onDeleteItem}
+        />
+      </div>
       <CategorySection
         title="Other"
         itemType="other"
