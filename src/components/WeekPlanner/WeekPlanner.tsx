@@ -128,6 +128,7 @@ export default function WeekPlanner({
             showQRCode={showQRCodes}
             dinnerTime={dinnerTime}
             weekOf={weekOf}
+            masterIngredients={masterIngredients}
           />
         ))}
       </div>

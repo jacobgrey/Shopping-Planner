@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import type { DayPlan } from "../../types/planner";
-import type { Meal, TagDefinition } from "../../types/meals";
+import type { Meal, TagDefinition, MasterIngredient } from "../../types/meals";
 import { DAY_NAMES } from "../../types/planner";
 import TagBadge from "../common/TagBadge";
 import TagSelector from "./TagSelector";
@@ -20,6 +20,7 @@ interface DayCardProps {
   showQRCode?: boolean;
   dinnerTime?: string;
   weekOf?: string;
+  masterIngredients?: MasterIngredient[];
 }
 
 export default function DayCard({
@@ -34,6 +35,7 @@ export default function DayCard({
   showQRCode,
   dinnerTime,
   weekOf,
+  masterIngredients,
 }: DayCardProps) {
   const [showTagPicker, setShowTagPicker] = useState(false);
   const [showMealPicker, setShowMealPicker] = useState(false);
@@ -64,12 +66,22 @@ export default function DayCard({
     const leadTime = Math.max(meal.startTimeHours ?? 0, meal.prepTimeHours ?? 0);
     const offset = leadTime > 0 ? leadTime + 0.5 : 1.5;
     const startHour = dinnerDecimal - offset;
-    // Build event description: recipe URL first, then notes two lines down
+    // Build event description: recipe URL, notes, then ingredients
     const detailParts: string[] = [];
     if (meal.recipeUrl) detailParts.push(meal.recipeUrl);
     if (meal.notes) {
       if (detailParts.length > 0) detailParts.push("");
       detailParts.push(meal.notes);
+    }
+    if (meal.ingredients.length > 0 && masterIngredients) {
+      if (detailParts.length > 0) detailParts.push("");
+      detailParts.push("Ingredients:");
+      for (const ing of meal.ingredients) {
+        const master = masterIngredients.find((m) => m.id === ing.ingredientId);
+        const name = master?.name ?? "Unknown";
+        const qty = ing.quantity != null ? `${ing.quantity} ${master?.defaultUnit ?? ""}`.trim() : "";
+        detailParts.push(qty ? `- ${qty} ${name}` : `- ${name}`);
+      }
     }
 
     return buildCalendarEvent({
