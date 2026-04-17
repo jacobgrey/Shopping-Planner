@@ -43,12 +43,12 @@ A desktop meal planning and shopping list app built with Tauri v2, React, and Ty
 
 Download the latest release from the [Releases](../../releases) page:
 
-- **`Meal Planner_x64-setup.exe`** — NSIS installer (recommended). Run it, follow the prompts, and launch from the Start Menu.
-- **`Meal Planner_x64_en-US.msi`** — MSI installer. Alternative for managed/enterprise deployments.
+- **`Shopping Planner_x64-setup.exe`** — NSIS installer (recommended). Run it, follow the prompts, and launch from the Start Menu.
+- **`Shopping Planner_x64_en-US.msi`** — MSI installer.
 
 ### Option B: Standalone executable
 
-Download `app.exe` from the [Releases](../../releases) page. No installation required — just run it from anywhere. On first launch you'll be prompted to choose a folder for your data.
+Download `shopping-planner.exe` from the [Releases](../../releases) page. No installation required — just run it from anywhere. On first launch you'll be prompted to choose a folder for your data.
 
 ### Updating
 

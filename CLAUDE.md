@@ -20,7 +20,7 @@ npm run dev
 npm run build
 ```
 
-Rust toolchain required for Tauri builds. The standalone exe is at `src-tauri/target/release/app.exe` (~11MB).
+Rust toolchain required for Tauri builds. The standalone exe is at `src-tauri/target/release/shopping-planner.exe` (~11MB).
 
 ## Architecture
 

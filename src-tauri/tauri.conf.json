@@ -1,6 +1,6 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "Meal Planner",
+  "productName": "Shopping Planner",
   "version": "0.1.0",
   "identifier": "com.meal-planner.app",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Meal Planner",
+        "title": "Shopping Planner",
         "width": 1100,
         "height": 750,
         "resizable": true,
