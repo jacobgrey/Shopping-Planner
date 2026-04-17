@@ -20,7 +20,20 @@ export function useMealLibrary() {
   async function loadMeals() {
     try {
       const data = await readJson<Meal[]>(MEALS_FILE);
-      const list = Array.isArray(data) ? data.filter((m) => m && typeof m.name === "string") : [];
+      const raw = Array.isArray(data) ? data.filter((m) => m && typeof m.name === "string") : [];
+      // Migrate legacy prepTimeMinutes → prepTimeHours
+      let migrated = false;
+      const list = raw.map((m: any) => {
+        if (m.prepTimeMinutes !== undefined && m.prepTimeHours === undefined) {
+          migrated = true;
+          const { prepTimeMinutes, ...rest } = m;
+          return { ...rest, prepTimeHours: Math.round((prepTimeMinutes / 60) * 100) / 100 };
+        }
+        return m;
+      });
+      if (migrated) {
+        await writeJson(MEALS_FILE, list);
+      }
       setMeals(list);
       mealsRef.current = list;
     } catch (e) {

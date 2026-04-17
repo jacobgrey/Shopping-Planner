@@ -8,6 +8,7 @@ interface PlannerPageProps {
   tags: TagDefinition[];
   masterIngredients: MasterIngredient[];
   firstDayOfWeek: number;
+  dinnerTime: string;
   categoryItemLib: {
     breakfastItems: CategoryItem[];
     lunchItems: CategoryItem[];
@@ -20,7 +21,7 @@ interface PlannerPageProps {
   };
 }
 
-export default function PlannerPage({ meals, tags, masterIngredients, firstDayOfWeek, categoryItemLib }: PlannerPageProps) {
+export default function PlannerPage({ meals, tags, masterIngredients, firstDayOfWeek, dinnerTime, categoryItemLib }: PlannerPageProps) {
   const planner = useWeekPlanner(meals, firstDayOfWeek);
 
   if (!planner.loaded || !planner.plan) {
@@ -50,6 +51,7 @@ export default function PlannerPage({ meals, tags, masterIngredients, firstDayOf
         onAddDeal={planner.addDeal}
         onRemoveDeal={planner.removeDeal}
         onUpdateDeal={planner.updateDeal}
+        dinnerTime={dinnerTime}
       />
 
       <div>

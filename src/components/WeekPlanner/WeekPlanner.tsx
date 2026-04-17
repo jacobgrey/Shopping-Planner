@@ -24,6 +24,7 @@ interface WeekPlannerProps {
   onAddDeal: (deal: Deal) => void;
   onRemoveDeal: (index: number) => void;
   onUpdateDeal: (index: number, deal: Deal) => void;
+  dinnerTime: string;
 }
 
 export default function WeekPlanner({
@@ -44,8 +45,10 @@ export default function WeekPlanner({
   onAddDeal,
   onRemoveDeal,
   onUpdateDeal,
+  dinnerTime,
 }: WeekPlannerProps) {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [showQRCodes, setShowQRCodes] = useState(false);
 
   function getMeal(mealId?: string): Meal | undefined {
     if (!mealId) return undefined;
@@ -72,6 +75,16 @@ export default function WeekPlanner({
           <p className="text-sm text-gray-500">Week of {weekOf}</p>
         </div>
         <div className="flex gap-2">
+          <button
+            onClick={() => setShowQRCodes(!showQRCodes)}
+            className={`px-4 py-2 text-sm font-medium rounded-lg border ${
+              showQRCodes
+                ? "text-purple-700 bg-purple-50 border-purple-300"
+                : "text-gray-700 bg-white border-gray-300 hover:bg-gray-50"
+            }`}
+          >
+            {showQRCodes ? "Hide QR Codes" : "Show QR Codes"}
+          </button>
           <button
             onClick={() => setShowResetConfirm(true)}
             className="px-4 py-2 text-sm font-medium text-red-600 bg-white border border-red-300 rounded-lg hover:bg-red-50"
@@ -112,6 +125,9 @@ export default function WeekPlanner({
             onToggleLock={() => onToggleLock(day.dayOfWeek)}
             onRegenerate={() => onRegenerateDay(day.dayOfWeek)}
             onSetMeal={(id) => onSetDayMeal(day.dayOfWeek, id)}
+            showQRCode={showQRCodes}
+            dinnerTime={dinnerTime}
+            weekOf={weekOf}
           />
         ))}
       </div>

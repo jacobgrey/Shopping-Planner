@@ -74,7 +74,10 @@ export interface ImportMealDefinition {
   sides?: string[];
   ingredients: ImportIngredientEntry[];
   tags: string[];
-  prepTimeMinutes?: number;
+  prepTimeHours?: number;
+  startTimeHours?: number;
+  prepTimeMinutes?: number; // legacy, auto-converted on import
+  recipeUrl?: string;
   notes?: string;
 }
 
@@ -85,7 +88,9 @@ export interface MealDefinition {
   sides?: string[];
   ingredients: IngredientEntry[];
   tags: string[];
-  prepTimeMinutes?: number;
+  prepTimeHours?: number;
+  startTimeHours?: number;
+  recipeUrl?: string;
   notes?: string;
 }
 

@@ -31,7 +31,9 @@ export default function MealEditor({
   const [ingredients, setIngredients] = useState<EditableIngredient[]>(
     meal?.ingredients?.length ? meal.ingredients : []
   );
-  const [prepTime, setPrepTime] = useState(meal?.prepTimeMinutes?.toString() || "");
+  const [prepTimeHours, setPrepTimeHours] = useState(meal?.prepTimeHours?.toString() || "");
+  const [startTimeHours, setStartTimeHours] = useState(meal?.startTimeHours?.toString() || "");
+  const [recipeUrl, setRecipeUrl] = useState(meal?.recipeUrl || "");
   const [notes, setNotes] = useState(meal?.notes || "");
 
   // State for adding a new master ingredient inline
@@ -51,7 +53,9 @@ export default function MealEditor({
       sides: sides.split(",").map((s) => s.trim()).filter(Boolean),
       ingredients: ingredients.filter((i) => i.ingredientId),
       tags,
-      prepTimeMinutes: prepTime ? parseInt(prepTime, 10) : undefined,
+      prepTimeHours: prepTimeHours ? parseFloat(prepTimeHours) : undefined,
+      startTimeHours: startTimeHours ? parseFloat(startTimeHours) : undefined,
+      recipeUrl: recipeUrl.trim() || undefined,
       notes: notes.trim() || undefined,
     };
     onSave(def);
@@ -171,18 +175,37 @@ export default function MealEditor({
         )}
       </div>
 
-      {/* Prep time */}
-      <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Prep Time (minutes) <span className="text-gray-400 font-normal">optional</span>
-        </label>
-        <input
-          type="number"
-          value={prepTime}
-          onChange={(e) => setPrepTime(e.target.value)}
-          min={0}
-          className="w-32 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
+      {/* Prep time & Start time */}
+      <div className="mb-4 flex gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Prep Time (hours) <span className="text-gray-400 font-normal">optional</span>
+          </label>
+          <input
+            type="number"
+            value={prepTimeHours}
+            onChange={(e) => setPrepTimeHours(e.target.value)}
+            min={0}
+            step="0.25"
+            placeholder="e.g. 0.5"
+            className="w-32 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Start Time (hours) <span className="text-gray-400 font-normal">optional</span>
+          </label>
+          <input
+            type="number"
+            value={startTimeHours}
+            onChange={(e) => setStartTimeHours(e.target.value)}
+            min={0}
+            step="0.25"
+            placeholder="e.g. 5"
+            className="w-32 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <p className="text-[10px] text-gray-400 mt-0.5">How far before dinner to start</p>
+        </div>
       </div>
 
       {/* Ingredients */}
@@ -337,6 +360,20 @@ export default function MealEditor({
         )}
       </div>
 
+      {/* Recipe URL */}
+      <div className="mb-4">
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Recipe URL <span className="text-gray-400 font-normal">optional</span>
+        </label>
+        <input
+          type="url"
+          value={recipeUrl}
+          onChange={(e) => setRecipeUrl(e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="https://..."
+        />
+      </div>
+
       {/* Notes */}
       <div className="mb-6">
         <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -347,7 +384,7 @@ export default function MealEditor({
           onChange={(e) => setNotes(e.target.value)}
           rows={2}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          placeholder="Any special notes or recipe URLs..."
+          placeholder="Any special notes..."
         />
       </div>
 

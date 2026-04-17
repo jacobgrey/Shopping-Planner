@@ -16,6 +16,8 @@ const DAY_NAME_OPTIONS: [number, string][] = DAY_NAMES.map((name, i) => [i, name
 interface SettingsProps {
   firstDayOfWeek: number;
   setFirstDayOfWeek: (day: number) => void;
+  dinnerTime: string;
+  setDinnerTime: (time: string) => void;
   tagLib: {
     tags: TagDefinition[];
     addTag: (label: string) => Promise<TagDefinition>;
@@ -44,7 +46,7 @@ function slugify(label: string): string {
     .replace(/^-|-$/g, "");
 }
 
-export default function Settings({ firstDayOfWeek, setFirstDayOfWeek, tagLib, mealLib, ingredientLib, onReloadAll }: SettingsProps) {
+export default function Settings({ firstDayOfWeek, setFirstDayOfWeek, dinnerTime, setDinnerTime, tagLib, mealLib, ingredientLib, onReloadAll }: SettingsProps) {
   const [currentDir] = useState(getStorageDirectory() || "");
   const [exportDir, setExportDir] = useState<string>("");
   const [status, setStatus] = useState<string | null>(null);
@@ -237,6 +239,18 @@ export default function Settings({ firstDayOfWeek, setFirstDayOfWeek, tagLib, me
             <option key={value} value={value}>{label}</option>
           ))}
         </select>
+      </section>
+
+      {/* Dinner Time */}
+      <section>
+        <h3 className="text-sm font-semibold text-gray-700 mb-2">Dinner Time</h3>
+        <p className="text-xs text-gray-500 mb-2">Used to calculate QR code calendar reminders for meal prep start times.</p>
+        <input
+          type="time"
+          value={dinnerTime}
+          onChange={(e) => setDinnerTime(e.target.value)}
+          className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
       </section>
 
       {/* Export/Import */}

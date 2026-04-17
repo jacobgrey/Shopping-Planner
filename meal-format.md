@@ -21,7 +21,8 @@ Use this format to create a JSON file for importing meals into the Meal Planner 
         }
       ],
       "tags": ["quick", "kid-favorite"],
-      "prepTimeMinutes": 25,
+      "prepTimeHours": 0.5,
+      "startTimeHours": 1,
       "notes": "Optional prep notes or recipe URL"
     }
   ]
@@ -38,8 +39,10 @@ Use this format to create a JSON file for importing meals into the Meal Planner 
 | `sides` | string[] | No | Side dishes (e.g., `["White Rice", "Steamed Broccoli"]`) |
 | `ingredients` | object[] | **Yes** | At least one ingredient required |
 | `tags` | string[] | No | Tag slugs — lowercase, hyphens only, no spaces (e.g., `"kid-friendly"`). Unknown tags are auto-created on import. Tags with spaces or special characters are auto-normalized. |
-| `prepTimeMinutes` | number | No | Active prep/cook time in minutes |
-| `notes` | string | No | Free-text notes. URLs are rendered as clickable links in the app. |
+| `prepTimeHours` | number | No | Active hands-on prep time in hours (e.g., 0.5 = 30 min) |
+| `startTimeHours` | number | No | How far before serving to start, including passive cook time (e.g., 5 for a slow cooker) |
+| `recipeUrl` | string | No | URL to the recipe (shown as a link, included in QR calendar reminders) |
+| `notes` | string | No | Free-text notes |
 
 ### Ingredient Fields
 
@@ -89,7 +92,7 @@ grill, vegetarian
         { "name": "white rice", "quantity": 1.5, "unit": "cups", "category": "dry-goods", "priceEstimate": 0.75 }
       ],
       "tags": ["quick", "kid-favorite", "healthy"],
-      "prepTimeMinutes": 25
+      "prepTimeHours": 0.42
     },
     {
       "name": "Slow Cooker Pulled Pork",
@@ -100,7 +103,8 @@ grill, vegetarian
         { "name": "hamburger buns", "quantity": 8, "unit": "each", "category": "bakery", "priceEstimate": 2.49 }
       ],
       "tags": ["low-effort", "has-leftovers", "slow-cooker"],
-      "prepTimeMinutes": 15,
+      "prepTimeHours": 0.25,
+      "startTimeHours": 8,
       "notes": "8 hours on low, 4 on high"
     }
   ]

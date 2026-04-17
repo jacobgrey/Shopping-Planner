@@ -94,7 +94,11 @@ export function validateMealImport(data: unknown): ValidationResult {
       sides: Array.isArray(meal.sides) ? (meal.sides as string[]) : [],
       ingredients: validIngredients,
       tags: validTags,
-      prepTimeMinutes: typeof meal.prepTimeMinutes === "number" ? meal.prepTimeMinutes : undefined,
+      prepTimeHours: typeof meal.prepTimeHours === "number" ? meal.prepTimeHours
+        : (typeof meal.prepTimeMinutes === "number" ? Math.round((meal.prepTimeMinutes as number) / 60 * 100) / 100 : undefined),
+      startTimeHours: typeof meal.startTimeHours === "number" ? meal.startTimeHours : undefined,
+      prepTimeMinutes: undefined, // clear legacy field after conversion
+      recipeUrl: typeof meal.recipeUrl === "string" ? meal.recipeUrl : undefined,
       notes: typeof meal.notes === "string" ? meal.notes : undefined,
     });
   }

@@ -3,12 +3,16 @@ import { getAppConfig, updateAppConfig } from "../lib/dataDirectory";
 
 export function useSettings() {
   const [firstDayOfWeek, setFirstDayOfWeekState] = useState(0); // 0=Monday default
+  const [dinnerTime, setDinnerTimeState] = useState("18:00");
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     getAppConfig().then((config) => {
       if (config?.firstDayOfWeek !== undefined) {
         setFirstDayOfWeekState(config.firstDayOfWeek);
+      }
+      if (config?.dinnerTime !== undefined) {
+        setDinnerTimeState(config.dinnerTime);
       }
       setLoaded(true);
     });
@@ -19,5 +23,10 @@ export function useSettings() {
     await updateAppConfig({ firstDayOfWeek: day });
   }, []);
 
-  return { firstDayOfWeek, setFirstDayOfWeek, loaded };
+  const setDinnerTime = useCallback(async (time: string) => {
+    setDinnerTimeState(time);
+    await updateAppConfig({ dinnerTime: time });
+  }, []);
+
+  return { firstDayOfWeek, setFirstDayOfWeek, dinnerTime, setDinnerTime, loaded };
 }

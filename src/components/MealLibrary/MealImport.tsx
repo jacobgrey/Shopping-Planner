@@ -117,7 +117,9 @@ export default function MealImport({
           sides: importMeal.sides,
           ingredients,
           tags: importMeal.tags,
-          prepTimeMinutes: importMeal.prepTimeMinutes,
+          prepTimeHours: importMeal.prepTimeHours,
+          startTimeHours: importMeal.startTimeHours,
+          recipeUrl: importMeal.recipeUrl,
           notes: importMeal.notes,
         });
       }

@@ -5,6 +5,8 @@ import { DAY_NAMES } from "../../types/planner";
 import TagBadge from "../common/TagBadge";
 import TagSelector from "./TagSelector";
 import NoteText from "../common/NoteText";
+import { QRCodeSVG } from "qrcode.react";
+import { buildCalendarEvent } from "../../lib/calendarUrl";
 
 interface DayCardProps {
   day: DayPlan;
@@ -15,6 +17,9 @@ interface DayCardProps {
   onToggleLock: () => void;
   onRegenerate: () => void;
   onSetMeal: (mealId: string | undefined) => void;
+  showQRCode?: boolean;
+  dinnerTime?: string;
+  weekOf?: string;
 }
 
 export default function DayCard({
@@ -26,6 +31,9 @@ export default function DayCard({
   onToggleLock,
   onRegenerate,
   onSetMeal,
+  showQRCode,
+  dinnerTime,
+  weekOf,
 }: DayCardProps) {
   const [showTagPicker, setShowTagPicker] = useState(false);
   const [showMealPicker, setShowMealPicker] = useState(false);
@@ -45,6 +53,37 @@ export default function DayCard({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showMealPicker]);
 
+  // Compute QR code URL for calendar reminder
+  function getQRUrl(): string | null {
+    if (!meal || !weekOf || !dinnerTime) return null;
+    const baseDate = new Date(weekOf + "T00:00:00");
+    baseDate.setDate(baseDate.getDate() + day.dayOfWeek);
+    const isoDate = baseDate.toISOString().slice(0, 10);
+    const [dh, dm] = dinnerTime.split(":").map(Number);
+    const dinnerDecimal = dh + dm / 60;
+    const leadTime = Math.max(meal.startTimeHours ?? 0, meal.prepTimeHours ?? 0);
+    const offset = leadTime > 0 ? leadTime + 0.5 : 1.5;
+    const startHour = dinnerDecimal - offset;
+    // Build event description: recipe URL first, then notes two lines down
+    const detailParts: string[] = [];
+    if (meal.recipeUrl) detailParts.push(meal.recipeUrl);
+    if (meal.notes) {
+      if (detailParts.length > 0) detailParts.push("");
+      detailParts.push(meal.notes);
+    }
+
+    return buildCalendarEvent({
+      title: `Start prepping ${meal.name}`,
+      date: isoDate,
+      startHour: Math.max(0, startHour),
+      endHour: dinnerDecimal,
+      description: detailParts.length > 0 ? detailParts.join("\n") : undefined,
+    });
+  }
+
+  // Show red clock if meal has significant lead time (>2 hours)
+  const hasLongLeadTime = meal && Math.max(meal.startTimeHours ?? 0, meal.prepTimeHours ?? 0) > 2;
+
   // Filter meals: by day tags (if set) then by search text
   const filteredMeals = allMeals.filter((m) => {
     if (day.tags.length > 0) {
@@ -59,13 +98,20 @@ export default function DayCard({
 
   return (
     <div
-      className={`bg-white rounded-lg border p-3 relative ${
+      className={`bg-white rounded-lg border p-3 relative flex flex-col ${
         day.locked ? "border-blue-300 bg-blue-50/30" : "border-gray-200"
       }`}
     >
       <div className="flex items-center justify-between mb-2">
-        <h3 className="font-semibold text-sm text-gray-800">
+        <h3 className="font-semibold text-sm text-gray-800 flex items-center gap-1">
           {DAY_NAMES[day.dayOfWeek]}
+          {hasLongLeadTime && (
+            <span title="Long prep time — consider setting a reminder">
+              <svg className="w-3.5 h-3.5 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+              </svg>
+            </span>
+          )}
         </h3>
         <button
           onClick={onToggleLock}
@@ -114,8 +160,20 @@ export default function DayCard({
         )}
       </div>
 
-      <div className="border-t border-gray-100 pt-2">
-        {meal ? (
+      <div className="border-t border-gray-100 pt-2 flex-1 flex flex-col">
+        {showQRCode && meal ? (
+          <>
+            <p className="text-sm font-medium text-gray-800 mb-2">{meal.name}</p>
+            <div className="mt-auto">
+              {(() => {
+                const url = getQRUrl();
+                return url ? (
+                  <QRCodeSVG value={url} size={0} level="L" style={{ width: "100%", height: "auto" }} />
+                ) : null;
+              })()}
+            </div>
+          </>
+        ) : meal ? (
           <div>
             <p className="text-sm font-medium text-gray-800">{meal.name}</p>
             {meal.sides && meal.sides.length > 0 && (

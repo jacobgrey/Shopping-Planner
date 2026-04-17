@@ -245,6 +245,7 @@ function MainApp({
             tags={tagLib.tags}
             masterIngredients={ingredientLib.ingredients}
             firstDayOfWeek={settingsLib.firstDayOfWeek}
+            dinnerTime={settingsLib.dinnerTime}
             categoryItemLib={catItemLib}
           />
         )}
@@ -260,6 +261,8 @@ function MainApp({
           <Settings
             firstDayOfWeek={settingsLib.firstDayOfWeek}
             setFirstDayOfWeek={settingsLib.setFirstDayOfWeek}
+            dinnerTime={settingsLib.dinnerTime}
+            setDinnerTime={settingsLib.setDinnerTime}
             tagLib={tagLib}
             mealLib={mealLib}
             ingredientLib={ingredientLib}

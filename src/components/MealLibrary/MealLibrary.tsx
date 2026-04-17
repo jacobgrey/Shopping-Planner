@@ -188,8 +188,14 @@ export default function MealLibrary({ mealLib, tagLib, ingredientLib }: MealLibr
                   <p className="text-sm text-gray-500">
                     {meal.ingredients.length} ingredient
                     {meal.ingredients.length !== 1 ? "s" : ""}
-                    {meal.prepTimeMinutes ? ` · ${meal.prepTimeMinutes} min` : ""}
+                    {meal.prepTimeHours ? ` · ${meal.prepTimeHours}h prep` : ""}
+                    {meal.startTimeHours ? ` · start ${meal.startTimeHours}h before` : ""}
                   </p>
+                  {meal.recipeUrl && (
+                    <p className="text-xs mt-1">
+                      <a href={meal.recipeUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-700 underline">Recipe</a>
+                    </p>
+                  )}
                   {meal.notes && (
                     <p className="text-xs text-gray-400 mt-1 line-clamp-2">
                       <NoteText text={meal.notes} className="text-xs text-gray-400" />
