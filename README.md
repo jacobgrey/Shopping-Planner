@@ -37,14 +37,35 @@ A desktop meal planning and shopping list app built with Tauri v2, React, and Ty
 - **Vite** — Build tooling and dev server
 - **Tailwind CSS 4** — Utility-first styling
 
-## Getting Started
+## Installation
+
+### Option A: Installer (recommended)
+
+Download the latest release from the [Releases](../../releases) page:
+
+- **`Meal Planner_x64-setup.exe`** — NSIS installer (recommended). Run it, follow the prompts, and launch from the Start Menu.
+- **`Meal Planner_x64_en-US.msi`** — MSI installer. Alternative for managed/enterprise deployments.
+
+### Option B: Standalone executable
+
+Download `app.exe` from the [Releases](../../releases) page. No installation required — just run it from anywhere. On first launch you'll be prompted to choose a folder for your data.
+
+### Updating
+
+To update, download and run the latest installer — it will replace the previous version. Your meal data is stored separately from the application and will not be affected.
+
+If using the standalone `.exe`, simply replace the old file with the new one.
+
+---
+
+## Development
 
 ### Prerequisites
 
 - Node.js 18+
 - Rust toolchain (for Tauri builds)
 
-### Development
+### Dev Server
 
 ```bash
 # Install dependencies
