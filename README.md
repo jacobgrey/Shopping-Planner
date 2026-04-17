@@ -1,73 +1,86 @@
-# React + TypeScript + Vite
+# Shopping Planner
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A desktop meal planning and shopping list app built with Tauri v2, React, and TypeScript. Plan weekly dinners, manage a meal library with recipes and ingredients, and generate organized shopping lists — all in a self-contained Windows executable.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+### Meal Library
+- Browse, search, sort, and filter meals by name or tag
+- Meal detail page with inline-editable sections: info, recipe/ingredients, and nutrition
+- Quick-edit recipe URLs and notes directly from library cards
+- Ingredient management linked to a master ingredient list with categories, units, and prices
+- Meal images via upload, URL paste, recipe page scraping, or automatic Google Image search
+- Bulk import meals from JSON
 
-## React Compiler
+### Week Planner
+- Assign meals to each day of the week with a visual grid
+- Auto-suggest meals based on tag preferences, deal bonuses, recency, and variety
+- Per-day manual items for breakfast, lunch, and snacks
+- QR code generation for calendar reminders with prep/start times and ingredient lists
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Shopping List
+- Automatically aggregated from the week plan: meal ingredients + category items + free-text notes
+- Deduplicates ingredients by name, sums quantities, and estimates cost
+- Organized by store category for efficient shopping
+- Export and print support
 
-## Expanding the ESLint configuration
+### Settings
+- Configurable first day of week, dinner time, meal card size
+- Tag management (create, rename, recolor, delete)
+- Data directory selection for portable storage
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Tech Stack
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+- **Tauri v2** — Rust backend with WebView2, producing a ~11MB standalone `.exe`
+- **React 19** — UI framework
+- **TypeScript** — Type safety throughout
+- **Vite** — Build tooling and dev server
+- **Tailwind CSS 4** — Utility-first styling
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+## Getting Started
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### Prerequisites
+
+- Node.js 18+
+- Rust toolchain (for Tauri builds)
+
+### Development
+
+```bash
+# Install dependencies
+npm install
+
+# Start dev server with Tauri window
+npx tauri dev
+
+# Frontend only (no Tauri window, runs in browser)
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### Build
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+```bash
+# Production build (creates .exe + installers in src-tauri/target/release/)
+npx tauri build
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# Frontend only
+npm run build
+
+# Type check
+npx tsc -b
 ```
+
+## Data Storage
+
+All data is stored as JSON files in a user-chosen directory. The directory path is saved in `%APPDATA%/com.meal-planner.app/config.json`. Data files include:
+
+| File | Contents |
+|------|----------|
+| `meals.json` | Meal library (names, sides, tags, ingredients, notes, nutrition) |
+| `ingredients.json` | Master ingredient list with categories, units, and prices |
+| `tags.json` | Tag definitions with labels and colors |
+| `category-items.json` | Breakfast, lunch, snack, and other quick-add items |
+| `current-week.json` | Current week's meal plan |
+| `deals.json` | Active deals used by the meal auto-selector |
+| `meal-history.json` | Recently used meals for the recency/variety algorithm |
+| `images/` | Meal images (resized to 600x450 JPG) |
