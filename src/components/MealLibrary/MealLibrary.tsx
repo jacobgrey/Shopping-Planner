@@ -8,6 +8,7 @@ import Toast from "../common/Toast";
 import { CARD_BORDER } from "../../lib/theme";
 import { useMealImages } from "../../hooks/useMealImages";
 import MealImagePanel from "./MealImagePanel";
+import { openExternal } from "../../lib/openExternal";
 
 type SortMode = "name-az" | "name-za" | "by-tag" | "prep-time";
 
@@ -58,6 +59,12 @@ export default function MealLibrary({ mealLib, tagLib, ingredientLib, mealCardSi
   const [filterTag, setFilterTag] = useState<string>("");
   const [sortMode, setSortMode] = useState<SortMode>("name-az");
   const [viewMode, setViewMode] = useState<ViewMode>({ view: "grid" });
+
+  // Quick-edit states
+  const [editingNotesId, setEditingNotesId] = useState<string | null>(null);
+  const [editingNotesValue, setEditingNotesValue] = useState("");
+  const [editingUrlId, setEditingUrlId] = useState<string | null>(null);
+  const [editingUrlValue, setEditingUrlValue] = useState("");
 
   // Image states
   const { images, reloadImage, removeImage } = useMealImages(meals);
@@ -123,6 +130,48 @@ export default function MealLibrary({ mealLib, tagLib, ingredientLib, mealCardSi
   async function handleImageRemoved(mealId: string) {
     await updateMeal(mealId, { imageFilename: undefined });
     removeImage(mealId);
+  }
+
+  // Quick-edit handlers
+  function startEditNotes(meal: Meal) {
+    setEditingNotesId(meal.id);
+    setEditingNotesValue(meal.notes || "");
+  }
+
+  async function saveNotes(mealId: string) {
+    try {
+      await updateMeal(mealId, { notes: editingNotesValue.trim() || undefined });
+      setEditingNotesId(null);
+    } catch (e) {
+      console.error("Failed to save notes:", e);
+    }
+  }
+
+  function startEditUrl(meal: Meal) {
+    setEditingUrlId(meal.id);
+    setEditingUrlValue(meal.recipeUrl || "");
+  }
+
+  async function saveUrl(mealId: string) {
+    try {
+      await updateMeal(mealId, { recipeUrl: editingUrlValue.trim() || undefined });
+      setEditingUrlId(null);
+    } catch (e) {
+      console.error("Failed to save URL:", e);
+    }
+  }
+
+  function handleUrlKeyDown(e: React.KeyboardEvent, mealId: string) {
+    if (e.key === "Enter" || e.key === "Tab") {
+      e.preventDefault();
+      saveUrl(mealId);
+    }
+  }
+
+  function handleOpenUrl(e: React.MouseEvent, url: string) {
+    e.preventDefault();
+    e.stopPropagation();
+    openExternal(url);
   }
 
   // Details view
@@ -272,18 +321,68 @@ export default function MealLibrary({ mealLib, tagLib, ingredientLib, mealCardSi
                     {meal.startTimeHours ? ` · ${meal.startTimeHours}h start` : ""}
                   </p>
 
-                  {/* Recipe URL (display only) */}
-                  {meal.recipeUrl && (
-                    <p className="text-[10px] text-blue-500 truncate mb-1">
-                      {(() => { try { return new URL(meal.recipeUrl).hostname.replace(/^www\./, ""); } catch { return "Recipe"; } })()}
-                    </p>
+                  {/* Recipe URL / Search link */}
+                  <div className="text-[10px] mb-1 flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                    {meal.recipeUrl ? (
+                      <>
+                        <a href={meal.recipeUrl} onClick={(e) => handleOpenUrl(e, meal.recipeUrl!)} className="text-blue-500 hover:text-blue-700 underline truncate cursor-pointer">
+                          {(() => { try { return new URL(meal.recipeUrl).hostname.replace(/^www\./, ""); } catch { return "Recipe"; } })()}
+                        </a>
+                        <button onClick={() => startEditUrl(meal)} className="text-gray-400 hover:text-gray-600 shrink-0" title="Edit URL">
+                          <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <a
+                          href="#"
+                          onClick={(e) => handleOpenUrl(e, `https://www.google.com/search?q=${encodeURIComponent(meal.name + " recipe")}`)}
+                          className="text-gray-400 hover:text-gray-600 italic cursor-pointer"
+                        >
+                          Search recipe
+                        </a>
+                        <button onClick={() => startEditUrl(meal)} className="text-gray-400 hover:text-gray-600 shrink-0" title="Add recipe URL">
+                          <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                        </button>
+                      </>
+                    )}
+                  </div>
+                  {editingUrlId === meal.id && (
+                    <input
+                      type="url"
+                      value={editingUrlValue}
+                      onChange={(e) => setEditingUrlValue(e.target.value)}
+                      onBlur={() => saveUrl(meal.id)}
+                      onKeyDown={(e) => handleUrlKeyDown(e, meal.id)}
+                      onClick={(e) => e.stopPropagation()}
+                      autoFocus
+                      placeholder="Paste recipe URL..."
+                      className="w-full px-1.5 py-0.5 text-[10px] border border-blue-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-400 mb-1"
+                    />
                   )}
 
-                  {/* Notes preview (display only) */}
-                  <div className="flex-1 min-h-0 mt-auto">
-                    {meal.notes && (
-                      <div className="text-[10px] text-gray-400 line-clamp-3">
-                        <NoteText text={meal.notes} className="text-[10px] text-gray-400" />
+                  {/* Notes (quick-edit) */}
+                  <div className="flex-1 min-h-0 mt-auto" onClick={(e) => e.stopPropagation()}>
+                    {editingNotesId === meal.id ? (
+                      <textarea
+                        value={editingNotesValue}
+                        onChange={(e) => setEditingNotesValue(e.target.value)}
+                        onBlur={() => saveNotes(meal.id)}
+                        autoFocus
+                        rows={3}
+                        className="w-full px-1.5 py-0.5 text-[10px] border border-blue-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-400 resize-none"
+                      />
+                    ) : (
+                      <div
+                        onClick={() => startEditNotes(meal)}
+                        className="text-[10px] text-gray-400 line-clamp-3 cursor-text hover:text-gray-500"
+                        title="Click to edit notes"
+                      >
+                        {meal.notes ? (
+                          <NoteText text={meal.notes} className="text-[10px] text-gray-400" />
+                        ) : (
+                          <span className="italic">Add notes...</span>
+                        )}
                       </div>
                     )}
                   </div>
