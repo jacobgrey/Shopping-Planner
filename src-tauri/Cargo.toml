@@ -1,6 +1,6 @@
 [package]
 name = "shopping-planner"
-version = "0.1.0"
+version = "0.1.1"
 description = "Shopping Planner - Meal planning and shopping list app"
 authors = ["you"]
 license = ""

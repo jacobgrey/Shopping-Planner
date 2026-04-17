@@ -7,6 +7,9 @@ import { getStorageDirectory } from "./storage";
 const IMAGE_WIDTH = 600;
 const IMAGE_HEIGHT = 450;
 const IMAGE_QUALITY = 0.85;
+const THUMB_WIDTH = 300;
+const THUMB_HEIGHT = 225;
+const THUMB_QUALITY = 0.8;
 const IMAGES_SUBDIR = "images";
 
 /** Get the images directory path, creating it if needed. */
@@ -37,57 +40,69 @@ function sanitizeFilename(mealName: string): string {
   return cleaned || "meal-image";
 }
 
-/** Resize and convert image data to a 600x450 JPG using offscreen canvas. */
-async function resizeToJpg(imageData: Uint8Array): Promise<Uint8Array> {
+/** Decode raw image bytes into an HTMLImageElement once, for reuse across resizes. */
+async function decodeImage(imageData: Uint8Array): Promise<{ img: HTMLImageElement; revoke: () => void }> {
   const blob = new Blob([imageData as BlobPart]);
   const url = URL.createObjectURL(blob);
-  try {
-    const img = new Image();
-    await new Promise<void>((resolve, reject) => {
-      img.onload = () => resolve();
-      img.onerror = () => reject(new Error("Failed to decode image"));
-      img.src = url;
-    });
-    const canvas = document.createElement("canvas");
-    canvas.width = IMAGE_WIDTH;
-    canvas.height = IMAGE_HEIGHT;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("Failed to get canvas context");
-    // Cover-fill: scale to fill, center-crop
-    const scale = Math.max(IMAGE_WIDTH / img.width, IMAGE_HEIGHT / img.height);
-    const sw = IMAGE_WIDTH / scale;
-    const sh = IMAGE_HEIGHT / scale;
-    const sx = (img.width - sw) / 2;
-    const sy = (img.height - sh) / 2;
-    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, IMAGE_WIDTH, IMAGE_HEIGHT);
-    const jpgBlob = await new Promise<Blob>((resolve, reject) => {
-      canvas.toBlob(
-        (b) => (b ? resolve(b) : reject(new Error("Canvas toBlob returned null"))),
-        "image/jpeg",
-        IMAGE_QUALITY
-      );
-    });
-    return new Uint8Array(await jpgBlob.arrayBuffer());
-  } finally {
-    URL.revokeObjectURL(url);
-  }
+  const img = new Image();
+  await new Promise<void>((resolve, reject) => {
+    img.onload = () => resolve();
+    img.onerror = () => reject(new Error("Failed to decode image"));
+    img.src = url;
+  });
+  return { img, revoke: () => URL.revokeObjectURL(url) };
 }
 
-/** Save image data as a JPG for the given meal name. Returns the filename. */
+/** Render a pre-decoded image to a JPG of the given size/quality (cover-fill, center-crop). */
+async function renderJpg(img: HTMLImageElement, width: number, height: number, quality: number): Promise<Uint8Array> {
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Failed to get canvas context");
+  const scale = Math.max(width / img.width, height / img.height);
+  const sw = width / scale;
+  const sh = height / scale;
+  const sx = (img.width - sw) / 2;
+  const sy = (img.height - sh) / 2;
+  ctx.drawImage(img, sx, sy, sw, sh, 0, 0, width, height);
+  const jpgBlob = await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (b) => (b ? resolve(b) : reject(new Error("Canvas toBlob returned null"))),
+      "image/jpeg",
+      quality
+    );
+  });
+  return new Uint8Array(await jpgBlob.arrayBuffer());
+}
+
+/** Derive the thumbnail filename from a full-size image filename. */
+export function thumbnailFilenameFor(fullFilename: string): string {
+  return fullFilename.replace(/\.jpg$/i, ".thumb.jpg");
+}
+
+/** Save image data as a full-size JPG plus a thumbnail. Returns the full-size filename. */
 export async function saveImage(mealName: string, imageData: Uint8Array): Promise<string> {
-  const jpg = await resizeToJpg(imageData);
-  let baseName = sanitizeFilename(mealName);
-  let filename = `${baseName}.jpg`;
-  const dir = await getImageDir();
-  // Handle duplicates by appending suffix
-  let path = await join(dir, filename);
-  if (await exists(path)) {
-    const suffix = crypto.randomUUID().slice(0, 6);
-    filename = `${baseName}-${suffix}.jpg`;
-    path = await join(dir, filename);
+  const { img, revoke } = await decodeImage(imageData);
+  try {
+    const fullJpg = await renderJpg(img, IMAGE_WIDTH, IMAGE_HEIGHT, IMAGE_QUALITY);
+    const thumbJpg = await renderJpg(img, THUMB_WIDTH, THUMB_HEIGHT, THUMB_QUALITY);
+    const baseName = sanitizeFilename(mealName);
+    const dir = await getImageDir();
+    let filename = `${baseName}.jpg`;
+    let fullPath = await join(dir, filename);
+    if (await exists(fullPath)) {
+      const suffix = crypto.randomUUID().slice(0, 6);
+      filename = `${baseName}-${suffix}.jpg`;
+      fullPath = await join(dir, filename);
+    }
+    const thumbPath = await join(dir, thumbnailFilenameFor(filename));
+    await writeFile(fullPath, fullJpg);
+    await writeFile(thumbPath, thumbJpg);
+    return filename;
+  } finally {
+    revoke();
   }
-  await writeFile(path, jpg);
-  return filename;
 }
 
 /** Prompt user to pick an image file, returns the binary data or null. */
@@ -293,6 +308,54 @@ export async function fetchImageFromUrl(imageUrl: string): Promise<Uint8Array | 
     throw new Error("Response too small to be an image");
   }
   return new Uint8Array(buf);
+}
+
+/** Convert a raw JPG byte buffer into a data URL. */
+function bytesToJpegDataUrl(bytes: Uint8Array): string {
+  let binary = "";
+  const chunkSize = 8192;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+  }
+  return `data:image/jpeg;base64,${btoa(binary)}`;
+}
+
+/**
+ * Load a meal's thumbnail. If none exists yet (old meal), generate one from the
+ * full-size image and persist it so subsequent loads are fast.
+ */
+export async function loadMealThumbnail(fullFilename: string): Promise<string | null> {
+  const existing = await loadImageAsDataUrl(thumbnailFilenameFor(fullFilename));
+  if (existing) return existing;
+
+  // Read the full image so we can derive a thumbnail.
+  let fullBytes: Uint8Array;
+  try {
+    const fullPath = await getImagePath(fullFilename);
+    if (!(await exists(fullPath))) return null;
+    fullBytes = await readFile(fullPath);
+  } catch {
+    return null;
+  }
+
+  try {
+    const { img, revoke } = await decodeImage(fullBytes);
+    try {
+      const thumbBytes = await renderJpg(img, THUMB_WIDTH, THUMB_HEIGHT, THUMB_QUALITY);
+      try {
+        const thumbPath = await getImagePath(thumbnailFilenameFor(fullFilename));
+        await writeFile(thumbPath, thumbBytes);
+      } catch {
+        // Cache write failed (e.g. read-only fs); still return the rendered thumb for this session.
+      }
+      return bytesToJpegDataUrl(thumbBytes);
+    } finally {
+      revoke();
+    }
+  } catch {
+    // Decode/render failed — fall back to the full image so the card still shows something.
+    return bytesToJpegDataUrl(fullBytes);
+  }
 }
 
 /** Load an image file as a data URL for display. Returns null if missing. */

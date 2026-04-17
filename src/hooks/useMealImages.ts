@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import type { Meal } from "../types/meals";
-import { loadImageAsDataUrl } from "../lib/mealImages";
+import { loadMealThumbnail } from "../lib/mealImages";
 
 /**
  * Loads meal images into a Map<mealId, dataUrl> for display.
@@ -49,7 +49,7 @@ export function useMealImages(meals: Meal[]) {
       for (const meal of toLoad) {
         if (cancelled) break;
         try {
-          const dataUrl = await loadImageAsDataUrl(meal.imageFilename!);
+          const dataUrl = await loadMealThumbnail(meal.imageFilename!);
           if (dataUrl) {
             newEntries.push([meal.id, dataUrl]);
           }
@@ -78,7 +78,7 @@ export function useMealImages(meals: Meal[]) {
   /** Force reload a specific meal's image (after upload/fetch). */
   function reloadImage(mealId: string, filename: string) {
     loadedRef.current.delete(mealId);
-    loadImageAsDataUrl(filename)
+    loadMealThumbnail(filename)
       .then((dataUrl) => {
         if (dataUrl) {
           setImages((prev) => {

@@ -7,6 +7,7 @@ import MealImagePanel from "./MealImagePanel";
 import ConfirmDialog from "../common/ConfirmDialog";
 import Toast from "../common/Toast";
 import { openExternal } from "../../lib/openExternal";
+import { loadImageAsDataUrl } from "../../lib/mealImages";
 
 type SectionId = "info" | "recipe-ingredients" | "nutrition";
 
@@ -83,6 +84,24 @@ export default function MealDetails({
       nameInputRef.current?.focus();
     }
   }, [isNewMeal]);
+
+  // The parent's images Map holds thumbnails — load the full-res image on open so
+  // the detail banner looks sharp. Shows the thumbnail first, swaps in the full when ready.
+  const [fullImageSrc, setFullImageSrc] = useState<string | null>(null);
+  useEffect(() => {
+    if (!meal.imageFilename) {
+      setFullImageSrc(null);
+      return;
+    }
+    let cancelled = false;
+    loadImageAsDataUrl(meal.imageFilename).then((url) => {
+      if (!cancelled) setFullImageSrc(url);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [meal.imageFilename]);
+  const displayImageSrc = fullImageSrc ?? imageSrc;
 
   const toggleSection = useCallback((section: SectionId) => {
     setEditingSections((prev) => {
@@ -566,10 +585,10 @@ export default function MealDetails({
     <div className="max-w-4xl mx-auto">
       {/* Image Banner */}
       <div className="relative h-[250px] -mx-6 -mt-6 mb-6 bg-gray-200 overflow-hidden">
-        {imageSrc ? (
+        {displayImageSrc ? (
           <>
             <img
-              src={imageSrc}
+              src={displayImageSrc}
               alt={name || "Meal image"}
               className="absolute inset-0 w-full h-full object-cover"
             />
@@ -580,7 +599,7 @@ export default function MealDetails({
                 mealName={name || meal.name || "New Meal"}
                 recipeUrl={recipeUrl || undefined}
                 imageFilename={meal.imageFilename}
-                imageSrc={imageSrc}
+                imageSrc={displayImageSrc}
                 onImageSaved={onImageSaved}
                 onImageRemoved={onImageRemoved}
                 onToast={(msg, type) => setToast({ message: msg, type })}
